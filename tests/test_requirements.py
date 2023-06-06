@@ -31,28 +31,43 @@ def test_missing_requirements():
     """
     # list of (bad configs, list of gold ProcessorRequirementsExceptions that should be thrown) pairs
     bad_config_lists = [
-        # missing tokenize
         (
-            # input config
-            {'processors': 'pos,depparse', 'dir': TEST_MODELS_DIR, 'lang': 'en'},
-            # 2 expected exceptions
+            {
+                'processors': 'pos,depparse',
+                'dir': TEST_MODELS_DIR,
+                'lang': 'en',
+            },
             [
-                {'processor_type': 'POSProcessor', 'processors_list': ['pos', 'depparse'], 'provided_reqs': set([]),
-                 'requires': set(['tokenize'])},
-                {'processor_type': 'DepparseProcessor', 'processors_list': ['pos', 'depparse'],
-                 'provided_reqs': set([]), 'requires': set(['tokenize','pos', 'lemma'])}
-            ]
+                {
+                    'processor_type': 'POSProcessor',
+                    'processors_list': ['pos', 'depparse'],
+                    'provided_reqs': set([]),
+                    'requires': {'tokenize'},
+                },
+                {
+                    'processor_type': 'DepparseProcessor',
+                    'processors_list': ['pos', 'depparse'],
+                    'provided_reqs': set([]),
+                    'requires': {'tokenize', 'pos', 'lemma'},
+                },
+            ],
         ),
-        # no pos when lemma_pos set to True; for english mwt should not be included in the loaded processor list
         (
-            # input config
-            {'processors': 'tokenize,mwt,lemma', 'dir': TEST_MODELS_DIR, 'lang': 'en', 'lemma_pos': True},
-            # 1 expected exception
+            {
+                'processors': 'tokenize,mwt,lemma',
+                'dir': TEST_MODELS_DIR,
+                'lang': 'en',
+                'lemma_pos': True,
+            },
             [
-                {'processor_type': 'LemmaProcessor', 'processors_list': ['tokenize', 'lemma'],
-                 'provided_reqs': set(['tokenize', 'mwt']), 'requires': set(['tokenize', 'pos'])}
-            ]
-        )
+                {
+                    'processor_type': 'LemmaProcessor',
+                    'processors_list': ['tokenize', 'lemma'],
+                    'provided_reqs': {'tokenize', 'mwt'},
+                    'requires': {'tokenize', 'pos'},
+                }
+            ],
+        ),
     ]
     # try to build each bad config, catch exceptions, check against gold
     pipeline_fails = 0

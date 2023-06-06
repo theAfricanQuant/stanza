@@ -23,11 +23,7 @@ class DataLoader:
         data = self.load_doc(self.doc, evaluation=self.eval)
 
         # handle vocab
-        if vocab is None:
-            self.vocab = self.init_vocab(data)
-        else:
-            self.vocab = vocab
-
+        self.vocab = self.init_vocab(data) if vocab is None else vocab
         # filter and sample data
         if args.get('sample_train', 1.0) < 1.0 and not self.eval:
             keep = int(args['sample_train'] * len(data))
@@ -45,12 +41,11 @@ class DataLoader:
         # chunk into batches
         data = [data[i:i+batch_size] for i in range(0, len(data), batch_size)]
         self.data = data
-        logger.debug("{} batches created.".format(len(data)))
+        logger.debug(f"{len(data)} batches created.")
 
     def init_vocab(self, data):
         assert self.eval == False # for eval vocab must exist
-        vocab = Vocab(data, self.args['shorthand'])
-        return vocab
+        return Vocab(data, self.args['shorthand'])
 
     def preprocess(self, data, vocab, args):
         processed = []
@@ -58,10 +53,7 @@ class DataLoader:
             src = list(d[0])
             src = [constant.SOS] + src + [constant.EOS]
             src = vocab.map(src)
-            if self.eval:
-                tgt = src # as a placeholder
-            else:
-                tgt = list(d[1])
+            tgt = src if self.eval else list(d[1])
             tgt_in = vocab.map([constant.SOS] + tgt)
             tgt_out = vocab.map(tgt + [constant.EOS])
             processed += [[src, tgt_in, tgt_out]]

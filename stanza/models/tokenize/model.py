@@ -52,9 +52,7 @@ class Tokenizer(nn.Module):
                 for l in self.conv_res:
                     inp = inp + l(conv_input).transpose(1, 2).contiguous()
             else:
-                hid = []
-                for l in self.conv_res:
-                    hid += [l(conv_input)]
+                hid = [l(conv_input) for l in self.conv_res]
                 hid = torch.cat(hid, 1)
                 hid = F.relu(hid)
                 hid = self.dropout(hid)
@@ -85,6 +83,13 @@ class Tokenizer(nn.Module):
         nonmwt = F.logsigmoid(-mwt0)
         mwt = F.logsigmoid(mwt0)
 
-        pred = torch.cat([nontok, tok+nonsent+nonmwt, tok+sent+nonmwt, tok+nonsent+mwt, tok+sent+mwt], 2)
-
-        return pred
+        return torch.cat(
+            [
+                nontok,
+                tok + nonsent + nonmwt,
+                tok + sent + nonmwt,
+                tok + nonsent + mwt,
+                tok + sent + mwt,
+            ],
+            2,
+        )

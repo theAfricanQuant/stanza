@@ -105,7 +105,7 @@ class Trainer(BaseTrainer):
                 }
         try:
             torch.save(params, filename)
-            logger.info("Model saved to {}".format(filename))
+            logger.info(f"Model saved to {filename}")
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
@@ -115,7 +115,7 @@ class Trainer(BaseTrainer):
         try:
             checkpoint = torch.load(filename, lambda storage, loc: storage)
         except BaseException:
-            logger.exception("Cannot load model from {}".format(filename))
+            logger.exception(f"Cannot load model from {filename}")
             sys.exit(1)
         self.args = checkpoint['config']
         if args: self.args.update(args)

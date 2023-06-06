@@ -10,7 +10,7 @@ here = path.abspath(path.dirname(__file__))
 
 # read the version from stanza/_version.py
 version_file_contents = open(path.join(here, 'stanza/_version.py'), encoding='utf-8').read()
-VERSION = re.compile('__version__ = \"(.*)\"').search(version_file_contents).group(1)
+VERSION = re.compile('__version__ = \"(.*)\"').search(version_file_contents)[1]
 
 # Get the long description from the README file
 with open(path.join(here, 'README.md'), encoding='utf-8') as f:

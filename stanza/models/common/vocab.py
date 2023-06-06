@@ -47,16 +47,11 @@ class BaseVocab:
         return new
 
     def normalize_unit(self, unit):
-        if self.lower:
-            return unit.lower()
-        return unit
+        return unit.lower() if self.lower else unit
 
     def unit2id(self, unit):
         unit = self.normalize_unit(unit)
-        if unit in self._unit2id:
-            return self._unit2id[unit]
-        else:
-            return self._unit2id[UNK]
+        return self._unit2id[unit] if unit in self._unit2id else self._unit2id[UNK]
 
     def id2unit(self, id):
         return self._id2unit[id]
@@ -73,7 +68,7 @@ class BaseVocab:
     def __getitem__(self, key):
         if isinstance(key, str):
             return self.unit2id(key)
-        elif isinstance(key, int) or isinstance(key, list):
+        elif isinstance(key, (int, list)):
             return self.id2unit(key)
         else:
             raise TypeError("Vocab key must be one of str, list, or int")
@@ -107,13 +102,10 @@ class CompositeVocab(BaseVocab):
 
     def unit2parts(self, unit):
         # unpack parts of a unit
-        if self.sep == "":
-            parts = [x for x in unit]
-        else:
-            parts = unit.split(self.sep)
+        parts = list(unit) if self.sep == "" else unit.split(self.sep)
         if self.keyed:
             if len(parts) == 1 and parts[0] == '_':
-                return dict()
+                return {}
             parts = [x.split('=') for x in parts]
 
             # Just treat multi-valued properties values as one possible value
@@ -135,7 +127,7 @@ class CompositeVocab(BaseVocab):
         for v, k in zip(id, self._id2unit.keys()):
             if v == EMPTY_ID: continue
             if self.keyed:
-                items.append("{}={}".format(k, self._id2unit[k][v]))
+                items.append(f"{k}={self._id2unit[k][v]}")
             else:
                 items.append(self._id2unit[k][v])
         res = self.sep.join(items)
@@ -145,9 +137,9 @@ class CompositeVocab(BaseVocab):
 
     def build_vocab(self):
         allunits = [w[self.idx] for sent in self.data for w in sent]
-        if self.keyed:
-            self._id2unit = dict()
+        self._id2unit = {}
 
+        if self.keyed:
             for u in allunits:
                 parts = self.unit2parts(u)
                 for key in parts:
@@ -159,14 +151,12 @@ class CompositeVocab(BaseVocab):
                         self._id2unit[key].append(parts[key])
 
             # special handle for the case where upos/xpos/ufeats are always empty
-            if len(self._id2unit) == 0:
+            if not self._id2unit:
                 self._id2unit['_'] = copy(VOCAB_PREFIX) # use an arbitrary key
 
         else:
-            self._id2unit = dict()
-
             allparts = [self.unit2parts(u) for u in allunits]
-            maxlen = max([len(p) for p in allparts])
+            maxlen = max(len(p) for p in allparts)
 
             for parts in allparts:
                 for i, p in enumerate(parts):
@@ -176,7 +166,7 @@ class CompositeVocab(BaseVocab):
                         self._id2unit[i].append(p)
 
             # special handle for the case where upos/xpos/ufeats are always empty
-            if len(self._id2unit) == 0:
+            if not self._id2unit:
                 self._id2unit[0] = copy(VOCAB_PREFIX) # use an arbitrary key
 
         self._id2unit = OrderedDict([(k, self._id2unit[k]) for k in sorted(self._id2unit.keys())])
@@ -195,7 +185,7 @@ class BaseMultiVocab:
         if vocab_dict is None:
             return
         # check all values provided must be a subclass of the Vocab base class
-        assert all([isinstance(v, BaseVocab) for v in vocab_dict.values()])
+        assert all(isinstance(v, BaseVocab) for v in vocab_dict.values())
         for k, v in vocab_dict.items():
             self._vocabs[k] = v
 

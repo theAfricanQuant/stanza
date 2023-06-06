@@ -104,17 +104,13 @@ class RobustService(object):
 
     def is_alive(self):
         try:
-            return requests.get(self.endpoint + "/ping").ok
+            return requests.get(f"{self.endpoint}/ping").ok
         except requests.exceptions.ConnectionError as e:
             raise ShouldRetryException(e)
 
     def start(self):
         if self.start_cmd:
-            if self.be_quiet:
-                # Issue #26: subprocess.DEVNULL isn't supported in python 2.7.
-                stderr = open(os.devnull, 'w')
-            else:
-                stderr = self.stderr
+            stderr = open(os.devnull, 'w') if self.be_quiet else self.stderr
             print(f"Starting server with command: {' '.join(self.start_cmd)}")
             self.server = subprocess.Popen(self.start_cmd,
                                            stderr=stderr,
@@ -273,13 +269,12 @@ class CoreNLPClient(RobustService):
                 if lang_name in LANGUAGE_SHORTHANDS_TO_FULL:
                     lang_name = LANGUAGE_SHORTHANDS_TO_FULL[lang_name]
                 if lang_name in ['en', 'english']:
-                    self.server_props_file['path'] = f'StanfordCoreNLP.properties'
+                    self.server_props_file['path'] = 'StanfordCoreNLP.properties'
                 else:
                     self.server_props_file['path'] = f'StanfordCoreNLP-{lang_name}.properties'
                 self.server_start_info['preload_annotators'] = LANGUAGE_DEFAULT_ANNOTATORS[lang_name]
                 print(f"Using Stanford CoreNLP default properties for: {lang_name}.  Make sure to have {lang_name} "
                       f"models jar (available for download here: https://stanfordnlp.github.io/CoreNLP/) in CLASSPATH")
-            # otherwise assume properties string is a path
             else:
                 self.server_props_file['path'] = properties
                 if os.path.isfile(properties):
@@ -295,7 +290,6 @@ class CoreNLPClient(RobustService):
                 print(f"Warning: Server defaults being set server side, ignoring annotators={annotators}")
             if output_format is not None:
                 print(f"Warning: Server defaults being set server side, ignoring output_format={output_format}")
-        # check if client side should set default properties
         else:
             # set up properties from client side
             # the Java Stanford CoreNLP server defaults to "json" for outputFormat
@@ -305,11 +299,11 @@ class CoreNLPClient(RobustService):
                 'outputFormat': CoreNLPClient.DEFAULT_OUTPUT_FORMAT,
                 'serializer': CoreNLPClient.DEFAULT_SERIALIZER
             }
-            client_side_properties.update(properties)
+            client_side_properties |= properties
             # override if a specific annotators list was specified
             if annotators:
                 client_side_properties['annotators'] = \
-                    ",".join(annotators) if isinstance(annotators, list) else annotators
+                        ",".join(annotators) if isinstance(annotators, list) else annotators
             # override if a specific output format was specified
             if output_format is not None and isinstance(output_format, str):
                 client_side_properties['outputFormat'] = output_format
@@ -348,7 +342,7 @@ class CoreNLPClient(RobustService):
             elif input_format == "serialized":
                 ctype = "application/x-protobuf"
             else:
-                raise ValueError("Unrecognized inputFormat " + input_format)
+                raise ValueError(f"Unrecognized inputFormat {input_format}")
             # handle auth
             if 'username' in kwargs and 'password' in kwargs:
                 kwargs['auth'] = requests.auth.HTTPBasicAuth(kwargs['username'], kwargs['password'])
@@ -402,15 +396,14 @@ class CoreNLPClient(RobustService):
         # set properties for server call
         # first look for a cached default properties set
         # if a Stanford CoreNLP supported language is specified, just pass {pipelineLanguage="french"}
-        if properties_key is not None:
-            if properties_key.lower() in ['en', 'english']:
-                request_properties = dict(ENGLISH_DEFAULT_REQUEST_PROPERTIES)
-            elif properties_key.lower() in CoreNLPClient.PIPELINE_LANGUAGES:
-                request_properties = {'pipelineLanguage': properties_key.lower()}
-            else:
-                request_properties = dict(self.properties_cache.get(properties_key, {}))
-        else:
+        if properties_key is None:
             request_properties = {}
+        elif properties_key.lower() in ['en', 'english']:
+            request_properties = dict(ENGLISH_DEFAULT_REQUEST_PROPERTIES)
+        elif properties_key.lower() in CoreNLPClient.PIPELINE_LANGUAGES:
+            request_properties = {'pipelineLanguage': properties_key.lower()}
+        else:
+            request_properties = dict(self.properties_cache.get(properties_key, {}))
         # add on custom properties for this request
         if properties is None:
             properties = {}
@@ -442,12 +435,11 @@ class CoreNLPClient(RobustService):
 
     def update(self, doc, annotators=None, properties=None):
         if properties is None:
-            properties = {}
-            properties.update({
+            properties = {} | {
                 'inputFormat': 'serialized',
                 'outputFormat': 'serialized',
-                'serializer': 'edu.stanford.nlp.pipeline.ProtobufAnnotationSerializer'
-            })
+                'serializer': 'edu.stanford.nlp.pipeline.ProtobufAnnotationSerializer',
+            }
         if annotators:
             properties['annotators'] = ",".join(annotators) if isinstance(annotators, list) else annotators
         with io.BytesIO() as stream:
@@ -487,11 +479,12 @@ class CoreNLPClient(RobustService):
         """
         self.ensure_alive()
         if properties is None:
-            properties = {}
-            properties.update({
-                'inputFormat': 'text',
-                'serializer': 'edu.stanford.nlp.pipeline.ProtobufAnnotationSerializer'
-            })
+            properties = dict(
+                {
+                    'inputFormat': 'text',
+                    'serializer': 'edu.stanford.nlp.pipeline.ProtobufAnnotationSerializer',
+                }
+            )
         if annotators:
             properties['annotators'] = ",".join(annotators) if isinstance(annotators, list) else annotators
 
@@ -511,7 +504,7 @@ class CoreNLPClient(RobustService):
             elif input_format == "serialized":
                 ctype = "application/x-protobuf"
             else:
-                raise ValueError("Unrecognized inputFormat " + input_format)
+                raise ValueError(f"Unrecognized inputFormat {input_format}")
             # change request method from `get` to `post` as required by CoreNLP
             r = requests.post(
                 self.endpoint + path, params={
@@ -536,21 +529,19 @@ class CoreNLPClient(RobustService):
 
 def read_corenlp_props(props_path):
     """ Read a Stanford CoreNLP properties file into a dict """
-    props_dict = {}
-    if os.path.exists(props_path):
-        with open(props_path) as props_file:
-            entry_lines = \
-                [entry_line for entry_line in props_file.read().split('\n')
-                 if entry_line.strip() and not entry_line.startswith('#')]
-            for entry_line in entry_lines:
-                k = entry_line.split('=')[0]
-                k_len = len(k+"=")
-                v = entry_line[k_len:]
-                props_dict[k.strip()] = v
-        return props_dict
-
-    else:
+    if not os.path.exists(props_path):
         raise RuntimeError(f'Error: Properties file at {props_path} does not exist!')
+    props_dict = {}
+    with open(props_path) as props_file:
+        entry_lines = \
+            [entry_line for entry_line in props_file.read().split('\n')
+             if entry_line.strip() and not entry_line.startswith('#')]
+        for entry_line in entry_lines:
+            k = entry_line.split('=')[0]
+            k_len = len(f"{k}=")
+            v = entry_line[k_len:]
+            props_dict[k.strip()] = v
+    return props_dict
 
 
 def write_corenlp_props(props_dict, file_path=None):
@@ -561,10 +552,7 @@ def write_corenlp_props(props_dict, file_path=None):
         assert SERVER_PROPS_TMP_FILE_PATTERN.match(file_path)
     with open(file_path, 'w') as props_file:
         for k, v in props_dict.items():
-            if isinstance(v, list):
-                writeable_v = ",".join(v)
-            else:
-                writeable_v = v
+            writeable_v = ",".join(v) if isinstance(v, list) else v
             props_file.write(f'{k} = {writeable_v}\n\n')
     return file_path
 
@@ -575,10 +563,12 @@ def regex_matches_to_indexed_words(matches):
     :param matches: unprocessed regex matches
     :return: flat array of indexed words
     """
-    words = [dict(v, **dict([('sentence', i)]))
-             for i, s in enumerate(matches['sentences'])
-             for k, v in s.items() if k != 'length']
-    return words
+    return [
+        dict(v, **dict([('sentence', i)]))
+        for i, s in enumerate(matches['sentences'])
+        for k, v in s.items()
+        if k != 'length'
+    ]
 
 
 __all__ = ["CoreNLPClient", "AnnotationException", "TimeoutException", "to_text"]

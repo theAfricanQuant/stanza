@@ -8,7 +8,7 @@ def tarjan(tree):
     indices = -np.ones_like(tree)
     lowlinks = -np.ones_like(tree)
     onstack = np.zeros_like(tree, dtype=bool)
-    stack = list()
+    stack = []
     _index = [0]
     cycles = []
     #-------------------------------------------------------------
@@ -39,6 +39,7 @@ def tarjan(tree):
             if cycle.sum() > 1:
                 cycles.append(cycle)
         return
+
     #-------------------------------------------------------------
     for i in range(len(tree)):
         if indices[i] == -1:
@@ -52,77 +53,73 @@ def chuliu_edmonds(scores):
     scores[0] = -float('inf')
     scores[0,0] = 0
     tree = np.argmax(scores, axis=1)
-    cycles = tarjan(tree)
-    #print(scores)
-    #print(cycles)
-    if not cycles:
+    if not (cycles := tarjan(tree)):
         return tree
-    else:
-        # t = len(tree); c = len(cycle); n = len(noncycle)
-        # locations of cycle; (t) in [0,1]
-        cycle = cycles.pop()
-        # indices of cycle in original tree; (c) in t
-        cycle_locs = np.where(cycle)[0]
-        # heads of cycle in original tree; (c) in t
-        cycle_subtree = tree[cycle]
-        # scores of cycle in original tree; (c) in R
-        cycle_scores = scores[cycle, cycle_subtree]
-        # total score of cycle; () in R
-        cycle_score = cycle_scores.sum()
+    # t = len(tree); c = len(cycle); n = len(noncycle)
+    # locations of cycle; (t) in [0,1]
+    cycle = cycles.pop()
+    # indices of cycle in original tree; (c) in t
+    cycle_locs = np.where(cycle)[0]
+    # heads of cycle in original tree; (c) in t
+    cycle_subtree = tree[cycle]
+    # scores of cycle in original tree; (c) in R
+    cycle_scores = scores[cycle, cycle_subtree]
+    # total score of cycle; () in R
+    cycle_score = cycle_scores.sum()
 
-        # locations of noncycle; (t) in [0,1]
-        noncycle = np.logical_not(cycle)
-        # indices of noncycle in original tree; (n) in t
-        noncycle_locs = np.where(noncycle)[0]
-        #print(cycle_locs, noncycle_locs)
+    # locations of noncycle; (t) in [0,1]
+    noncycle = np.logical_not(cycle)
+    # indices of noncycle in original tree; (n) in t
+    noncycle_locs = np.where(noncycle)[0]
+    #print(cycle_locs, noncycle_locs)
 
-        # scores of cycle's potential heads; (c x n) - (c) + () -> (n x c) in R
-        metanode_head_scores = scores[cycle][:,noncycle] - cycle_scores[:,None] + cycle_score
-        # scores of cycle's potential dependents; (n x c) in R
-        metanode_dep_scores = scores[noncycle][:,cycle]
-        # best noncycle head for each cycle dependent; (n) in c
-        metanode_heads = np.argmax(metanode_head_scores, axis=0)
-        # best cycle head for each noncycle dependent; (n) in c
-        metanode_deps = np.argmax(metanode_dep_scores, axis=1)
+    # scores of cycle's potential heads; (c x n) - (c) + () -> (n x c) in R
+    metanode_head_scores = scores[cycle][:,noncycle] - cycle_scores[:,None] + cycle_score
+    # scores of cycle's potential dependents; (n x c) in R
+    metanode_dep_scores = scores[noncycle][:,cycle]
+    # best noncycle head for each cycle dependent; (n) in c
+    metanode_heads = np.argmax(metanode_head_scores, axis=0)
+    # best cycle head for each noncycle dependent; (n) in c
+    metanode_deps = np.argmax(metanode_dep_scores, axis=1)
 
-        # scores of noncycle graph; (n x n) in R
-        subscores = scores[noncycle][:,noncycle]
-        # pad to contracted graph; (n+1 x n+1) in R
-        subscores = np.pad(subscores, ( (0,1) , (0,1) ), 'constant')
-        # set the contracted graph scores of cycle's potential heads; (c x n)[:, (n) in n] in R -> (n) in R
-        subscores[-1, :-1] = metanode_head_scores[metanode_heads, np.arange(len(noncycle_locs))]
-        # set the contracted graph scores of cycle's potential dependents; (n x c)[(n) in n] in R-> (n) in R
-        subscores[:-1,-1] = metanode_dep_scores[np.arange(len(noncycle_locs)), metanode_deps]
+    # scores of noncycle graph; (n x n) in R
+    subscores = scores[noncycle][:,noncycle]
+    # pad to contracted graph; (n+1 x n+1) in R
+    subscores = np.pad(subscores, ( (0,1) , (0,1) ), 'constant')
+    # set the contracted graph scores of cycle's potential heads; (c x n)[:, (n) in n] in R -> (n) in R
+    subscores[-1, :-1] = metanode_head_scores[metanode_heads, np.arange(len(noncycle_locs))]
+    # set the contracted graph scores of cycle's potential dependents; (n x c)[(n) in n] in R-> (n) in R
+    subscores[:-1,-1] = metanode_dep_scores[np.arange(len(noncycle_locs)), metanode_deps]
 
-        # MST with contraction; (n+1) in n+1
-        contracted_tree = chuliu_edmonds(subscores)
-        # head of the cycle; () in n
-        #print(contracted_tree)
-        cycle_head = contracted_tree[-1]
-        # fixed tree: (n) in n+1
-        contracted_tree = contracted_tree[:-1]
-        # initialize new tree; (t) in 0
-        new_tree = -np.ones_like(tree)
-        #print(0, new_tree)
-        # fixed tree with no heads coming from the cycle: (n) in [0,1]
-        contracted_subtree = contracted_tree < len(contracted_tree)
-        # add the nodes to the new tree (t)[(n)[(n) in [0,1]] in t] in t = (n)[(n)[(n) in [0,1]] in n] in t
-        new_tree[noncycle_locs[contracted_subtree]] = noncycle_locs[contracted_tree[contracted_subtree]]
-        #print(1, new_tree)
-        # fixed tree with heads coming from the cycle: (n) in [0,1]
-        contracted_subtree = np.logical_not(contracted_subtree)
-        # add the nodes to the tree (t)[(n)[(n) in [0,1]] in t] in t = (c)[(n)[(n) in [0,1]] in c] in t
-        new_tree[noncycle_locs[contracted_subtree]] = cycle_locs[metanode_deps[contracted_subtree]]
-        #print(2, new_tree)
-        # add the old cycle to the tree; (t)[(c) in t] in t = (t)[(c) in t] in t
-        new_tree[cycle_locs] = tree[cycle_locs]
-        #print(3, new_tree)
-        # root of the cycle; (n)[() in n] in c = () in c
-        cycle_root = metanode_heads[cycle_head]
-        # add the root of the cycle to the new tree; (t)[(c)[() in c] in t] = (c)[() in c]
-        new_tree[cycle_locs[cycle_root]] = noncycle_locs[cycle_head]
-        #print(4, new_tree)
-        return new_tree
+    # MST with contraction; (n+1) in n+1
+    contracted_tree = chuliu_edmonds(subscores)
+    # head of the cycle; () in n
+    #print(contracted_tree)
+    cycle_head = contracted_tree[-1]
+    # fixed tree: (n) in n+1
+    contracted_tree = contracted_tree[:-1]
+    # initialize new tree; (t) in 0
+    new_tree = -np.ones_like(tree)
+    #print(0, new_tree)
+    # fixed tree with no heads coming from the cycle: (n) in [0,1]
+    contracted_subtree = contracted_tree < len(contracted_tree)
+    # add the nodes to the new tree (t)[(n)[(n) in [0,1]] in t] in t = (n)[(n)[(n) in [0,1]] in n] in t
+    new_tree[noncycle_locs[contracted_subtree]] = noncycle_locs[contracted_tree[contracted_subtree]]
+    #print(1, new_tree)
+    # fixed tree with heads coming from the cycle: (n) in [0,1]
+    contracted_subtree = np.logical_not(contracted_subtree)
+    # add the nodes to the tree (t)[(n)[(n) in [0,1]] in t] in t = (c)[(n)[(n) in [0,1]] in c] in t
+    new_tree[noncycle_locs[contracted_subtree]] = cycle_locs[metanode_deps[contracted_subtree]]
+    #print(2, new_tree)
+    # add the old cycle to the tree; (t)[(c) in t] in t = (t)[(c) in t] in t
+    new_tree[cycle_locs] = tree[cycle_locs]
+    #print(3, new_tree)
+    # root of the cycle; (n)[() in n] in c = () in c
+    cycle_root = metanode_heads[cycle_head]
+    # add the root of the cycle to the new tree; (t)[(c)[() in c] in t] = (c)[() in c]
+    new_tree[cycle_locs[cycle_root]] = noncycle_locs[cycle_head]
+    #print(4, new_tree)
+    return new_tree
 
 #===============================================================
 def chuliu_edmonds_one_root(scores):

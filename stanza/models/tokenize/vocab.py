@@ -28,7 +28,7 @@ class Vocab(BaseVocab):
     def normalize_token(self, token):
         token = re.sub('\s', ' ', token.lstrip())
 
-        if any([self.lang.startswith(x) for x in ['zh', 'ja', 'ko']]):
+        if any(self.lang.startswith(x) for x in ['zh', 'ja', 'ko']):
             token = token.replace(' ', '')
 
         return token

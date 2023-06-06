@@ -113,8 +113,8 @@ class Document:
             begin_idx, end_idx = self.sentences[-1].tokens[0].start_char, self.sentences[-1].tokens[-1].end_char
             if all([self.text is not None, begin_idx is not None, end_idx is not None]): self.sentences[-1].text = self.text[begin_idx: end_idx]
 
-        self.num_tokens = sum([len(sentence.tokens) for sentence in self.sentences])
-        self.num_words = sum([len(sentence.words) for sentence in self.sentences])
+        self.num_tokens = sum(len(sentence.tokens) for sentence in self.sentences)
+        self.num_words = sum(len(sentence.words) for sentence in self.sentences)
 
     def get(self, fields, as_sentences=False, from_token=False):
         """ Get fields from a list of field names. If only one field name is provided, return a list
@@ -136,10 +136,7 @@ class Document:
         for sentence in self.sentences:
             cursent = []
             # decide word or token
-            if from_token:
-                units = sentence.tokens
-            else:
-                units = sentence.words
+            units = sentence.tokens if from_token else sentence.words
             for unit in units:
                 if len(fields) == 1:
                     cursent += [getattr(unit, fields[0])]
@@ -167,15 +164,12 @@ class Document:
         assert len(fields) >= 1, "Must have at least one field."
 
         assert (to_token and self.num_tokens == len(contents)) or self.num_words == len(contents), \
-            "Contents must have the same number as the original file."
+                "Contents must have the same number as the original file."
 
         cidx = 0
         for sentence in self.sentences:
             # decide word or token
-            if to_token:
-                units = sentence.tokens
-            else:
-                units = sentence.words
+            units = sentence.tokens if to_token else sentence.words
             for unit in units:
                 if len(fields) == 1:
                     setattr(unit, fields[0], contents[cidx])
@@ -207,12 +201,14 @@ class Document:
                     token.misc = None if token.misc == 'MWT=Yes' else '|'.join([x for x in token.misc.split('|') if x != 'MWT=Yes'])
                     token.id = f'{idx_w}-{idx_w_end}'
                     token.words = []
-                    for i, e_word in enumerate(expanded):
-                        token.words.append(Word({ID: str(idx_w + i), TEXT: e_word}))
+                    token.words.extend(
+                        Word({ID: str(idx_w + i), TEXT: e_word})
+                        for i, e_word in enumerate(expanded)
+                    )
                     idx_w = idx_w_end
             sentence._process_tokens(sentence.to_dict()) # reprocess to update sentence.words and sentence.dependencies
         self._process_sentences(self.to_dict()) # reprocess to update number of words
-        assert idx_e == len(expansions), "{} {}".format(idx_e, len(expansions))
+        assert idx_e == len(expansions), f"{idx_e} {len(expansions)}"
         return
 
     def get_mwt_expansions(self, evaluation=False):
@@ -283,8 +279,10 @@ class Sentence:
                 entry[ID] = str(i+1)
             m = multi_word_token_id.match(entry.get(ID))
             n = multi_word_token_misc.match(entry.get(MISC)) if entry.get(MISC, None) is not None else None
-            if m or n: # if this token is a multi-word token
-                if m: st, en = int(m.group(1)), int(m.group(2))
+            if m: # if this token is a multi-word token
+                st, en = int(m.group(1)), int(m.group(2))
+                self.tokens.append(Token(entry))
+            elif n: # if this token is a multi-word token
                 self.tokens.append(Token(entry))
             else: # else this token is a word
                 new_word = Word(entry)
@@ -297,7 +295,10 @@ class Sentence:
                 new_word.parent = self.tokens[-1]
 
         # check if there is dependency info
-        is_complete_dependencies = all([word.head is not None and word.deprel is not None for word in self.words])
+        is_complete_dependencies = all(
+            word.head is not None and word.deprel is not None
+            for word in self.words
+        )
         is_complete_words = (len(self.words) >= len(self.tokens)) and (len(self.words) == int(self.words[-1].id))
         if is_complete_dependencies and is_complete_words: self.build_dependencies()
     
@@ -552,13 +553,13 @@ class Token:
         """
         ret = []
         if multi_word_token_id.match(self.id):
-            token_dict = {}
-            for field in fields:
-                if getattr(self, field) is not None:
-                    token_dict[field] = getattr(self, field)
+            token_dict = {
+                field: getattr(self, field)
+                for field in fields
+                if getattr(self, field) is not None
+            }
             ret.append(token_dict)
-        for word in self.words:
-            ret.append(word.to_dict())
+        ret.extend(word.to_dict() for word in self.words)
         return ret
 
     def pretty_print(self):
@@ -575,9 +576,11 @@ class Word:
     def __init__(self, word_entry):
         """ Construct a word given a dictionary format word entry.
         """
-        assert word_entry.get(ID) and word_entry.get(TEXT), 'id and text should be included for the word. {}'.format(word_entry)
+        assert word_entry.get(ID) and word_entry.get(
+            TEXT
+        ), f'id and text should be included for the word. {word_entry}'
         self._id, self._text, self._lemma, self._upos, self._xpos, self._feats, self._head, self._deprel, self._deps, \
-            self._misc, self._parent = [None] * 11
+                self._misc, self._parent = [None] * 11
 
         self.id = word_entry.get(ID)
         self.text = word_entry.get(TEXT)
@@ -735,16 +738,22 @@ class Word:
     def to_dict(self, fields=[ID, TEXT, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL, DEPS, MISC]):
         """ Dumps the word into a dictionary.
         """
-        word_dict = {}
-        for field in fields:
-            if getattr(self, field) is not None:
-                word_dict[field] = getattr(self, field)
-        return word_dict
+        return {
+            field: getattr(self, field)
+            for field in fields
+            if getattr(self, field) is not None
+        }
 
     def pretty_print(self):
         """ Print the word in one line. """
         features = [ID, TEXT, LEMMA, UPOS, XPOS, FEATS, HEAD, DEPREL]
-        feature_str = ";".join(["{}={}".format(k, getattr(self, k)) for k in features if getattr(self, k) is not None])
+        feature_str = ";".join(
+            [
+                f"{k}={getattr(self, k)}"
+                for k in features
+                if getattr(self, k) is not None
+            ]
+        )
         return f"<{self.__class__.__name__} {feature_str}>"
 
     def _is_null(self, value):
@@ -867,8 +876,7 @@ class Span:
     def to_dict(self):
         """ Dumps the span into a dictionary. """
         attrs = ['text', 'type', 'start_char', 'end_char']
-        span_dict = dict([(attr_name, getattr(self, attr_name)) for attr_name in attrs])
-        return span_dict
+        return dict([(attr_name, getattr(self, attr_name)) for attr_name in attrs])
 
     def __repr__(self):
         return json.dumps(self.to_dict(), indent=2, ensure_ascii=False)
@@ -876,5 +884,5 @@ class Span:
     def pretty_print(self):
         """ Print the span in one line. """
         span_dict = self.to_dict()
-        feature_str = ";".join(["{}={}".format(k,v) for k,v in span_dict.items()])
+        feature_str = ";".join([f"{k}={v}" for k,v in span_dict.items()])
         return f"<{self.__class__.__name__} {feature_str}>"

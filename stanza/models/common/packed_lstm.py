@@ -42,7 +42,7 @@ class LSTMwRecDropout(nn.Module):
         self.cells = nn.ModuleList()
         for l in range(num_layers):
             in_size = input_size if l == 0 else self.num_directions * hidden_size
-            for d in range(self.num_directions):
+            for _ in range(self.num_directions):
                 self.cells.append(nn.LSTMCell(in_size, hidden_size, bias=bias))
 
     def forward(self, input, hx=None):

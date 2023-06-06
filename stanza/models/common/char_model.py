@@ -109,11 +109,8 @@ class CharacterLanguageModel(nn.Module):
         Override the default train() function, so that when self.finetune == False, the training mode 
         won't be impacted by the parent models' status change.
         """
-        if not mode: # eval() is always allowed, regardless of finetune status
+        if mode and self.finetune or not mode: # only set to training mode in finetune status
             super().train(mode)
-        else:
-            if self.finetune: # only set to training mode in finetune status
-                super().train(mode)
 
     def save(self, filename):
         state = {

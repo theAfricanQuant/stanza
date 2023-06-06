@@ -20,7 +20,7 @@ def get_optimizer(name, parameters, lr):
     elif name == 'adamax':
         return torch.optim.Adamax(parameters) # use default lr
     else:
-        raise Exception("Unsupported optimizer: {}".format(name))
+        raise Exception(f"Unsupported optimizer: {name}")
 
 def change_lr(optimizer, new_lr):
     for param_group in optimizer.param_groups:
@@ -29,14 +29,11 @@ def change_lr(optimizer, new_lr):
 def flatten_indices(seq_lens, width):
     flat = []
     for i, l in enumerate(seq_lens):
-        for j in range(l):
-            flat.append(i * width + j)
+        flat.extend(i * width + j for j in range(l))
     return flat
 
 def set_cuda(var, cuda):
-    if cuda:
-        return var.cuda()
-    return var
+    return var.cuda() if cuda else var
 
 def keep_partial_grad(grad, topk):
     """
@@ -51,14 +48,14 @@ def save_config(config, path, verbose=True):
     with open(path, 'w') as outfile:
         json.dump(config, outfile, indent=2)
     if verbose:
-        print("Config saved to file {}".format(path))
+        print(f"Config saved to file {path}")
     return config
 
 def load_config(path, verbose=True):
     with open(path) as f:
         config = json.load(f)
     if verbose:
-        print("Config loaded from file {}".format(path))
+        print(f"Config loaded from file {path}")
     return config
 
 def normalize_text(text):
@@ -97,25 +94,21 @@ def prune_hyp(hyp):
     """
     Prune a decoded hypothesis
     """
-    if constant.EOS_ID in hyp:
-        idx = hyp.index(constant.EOS_ID)
-        return hyp[:idx]
-    else:
+    if constant.EOS_ID not in hyp:
         return hyp
+    idx = hyp.index(constant.EOS_ID)
+    return hyp[:idx]
 
 def prune(data_list, lens):
     assert len(data_list) == len(lens)
-    nl = []
-    for d, l in zip(data_list, lens):
-        nl.append(d[:l])
-    return nl
+    return [d[:l] for d, l in zip(data_list, lens)]
 
 def sort(packed, ref, reverse=True):
     """
     Sort a series of packed list, according to a ref list.
     Also return the original index before the sort.
     """
-    assert (isinstance(packed, tuple) or isinstance(packed, list)) and isinstance(ref, list)
+    assert (isinstance(packed, (tuple, list))) and isinstance(ref, list)
     packed = [ref] + [range(len(ref))] + list(packed)
     sorted_packed = [list(t) for t in zip(*sorted(zip(*packed), reverse=reverse))]
     return tuple(sorted_packed[1:])

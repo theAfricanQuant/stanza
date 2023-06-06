@@ -77,8 +77,10 @@ class Seq2SeqModel(nn.Module):
         if self.emb_matrix is not None:
             if isinstance(self.emb_matrix, np.ndarray):
                 self.emb_matrix = torch.from_numpy(self.emb_matrix)
-            assert self.emb_matrix.size() == (self.vocab_size, self.emb_dim), \
-                    "Input embedding matrix must match size: {} x {}".format(self.vocab_size, self.emb_dim)
+            assert self.emb_matrix.size() == (
+                self.vocab_size,
+                self.emb_dim,
+            ), f"Input embedding matrix must match size: {self.vocab_size} x {self.emb_dim}"
             self.embedding.weight.data.copy_(self.emb_matrix)
         else:
             self.embedding.weight.data.uniform_(-init_range, init_range)
@@ -87,7 +89,7 @@ class Seq2SeqModel(nn.Module):
             logger.debug("Do not finetune embedding layer.")
             self.embedding.weight.requires_grad = False
         elif self.top < self.vocab_size:
-            logger.debug("Finetune top {} embeddings.".format(self.top))
+            logger.debug(f"Finetune top {self.top} embeddings.")
             self.embedding.weight.register_hook(lambda x: utils.keep_partial_grad(x, self.top))
         else:
             logger.debug("Finetune all embeddings.")
@@ -107,9 +109,7 @@ class Seq2SeqModel(nn.Module):
         batch_size = inputs.size(0)
         h0 = torch.zeros(self.encoder.num_layers*2, batch_size, self.enc_hidden_dim, requires_grad=False)
         c0 = torch.zeros(self.encoder.num_layers*2, batch_size, self.enc_hidden_dim, requires_grad=False)
-        if self.use_cuda:
-            return h0.cuda(), c0.cuda()
-        return h0, c0
+        return (h0.cuda(), c0.cuda()) if self.use_cuda else (h0, c0)
 
     def encode(self, enc_inputs, lens):
         """ Encode source sequence. """
@@ -148,11 +148,7 @@ class Seq2SeqModel(nn.Module):
 
         h_in, (hn, cn) = self.encode(enc_inputs, src_lens)
 
-        if self.edit:
-            edit_logits = self.edit_clf(hn)
-        else:
-            edit_logits = None
-
+        edit_logits = self.edit_clf(hn) if self.edit else None
         log_probs, _ = self.decode(dec_inputs, hn, cn, h_in, src_mask)
         return log_probs, edit_logits
 
@@ -178,11 +174,7 @@ class Seq2SeqModel(nn.Module):
         # (1) encode source
         h_in, (hn, cn) = self.encode(enc_inputs, src_lens)
 
-        if self.edit:
-            edit_logits = self.edit_clf(hn)
-        else:
-            edit_logits = None
-
+        edit_logits = self.edit_clf(hn) if self.edit else None
         # (2) set up beam
         with torch.no_grad():
             h_in = h_in.data.repeat(beam_size, 1, 1) # repeat data for beam search
@@ -205,7 +197,7 @@ class Seq2SeqModel(nn.Module):
             dec_inputs = self.embedding(dec_inputs)
             log_probs, (hn, cn) = self.decode(dec_inputs, hn, cn, h_in, src_mask)
             log_probs = log_probs.view(beam_size, batch_size, -1).transpose(0,1)\
-                    .contiguous() # [batch, beam, V]
+                        .contiguous() # [batch, beam, V]
 
             # advance each beam
             done = []

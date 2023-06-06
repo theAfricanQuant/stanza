@@ -14,7 +14,7 @@ class WordDropout(nn.Module):
         if not self.training or self.dropprob == 0:
             return x
 
-        masksize = [y for y in x.size()]
+        masksize = list(x.size())
         masksize[-1] = 1
         dropmask = torch.rand(*masksize, device=x.device) < self.dropprob
 
@@ -25,7 +25,7 @@ class WordDropout(nn.Module):
         return res
     
     def extra_repr(self):
-        return 'p={}'.format(self.dropprob)
+        return f'p={self.dropprob}'
 
 class LockedDropout(nn.Module):
     """
@@ -50,7 +50,7 @@ class LockedDropout(nn.Module):
         return mask * x
     
     def extra_repr(self):
-        return 'p={}'.format(self.dropprob)
+        return f'p={self.dropprob}'
 
 class SequenceUnitDropout(nn.Module):
     """ A unit dropout layer that's designed for input of sequence units (e.g., word sequence, char sequence, etc.).
@@ -65,11 +65,10 @@ class SequenceUnitDropout(nn.Module):
         """ :param: x must be a LongTensor of unit indices. """
         if not self.training or self.dropprob == 0:
             return x
-        masksize = [y for y in x.size()]
+        masksize = list(x.size())
         dropmask = torch.rand(*masksize, device=x.device) < self.dropprob
-        res = x.masked_fill(dropmask, self.replacement_id)
-        return res
+        return x.masked_fill(dropmask, self.replacement_id)
     
     def extra_repr(self):
-        return 'p={}, replacement_id={}'.format(self.dropprob, self.replacement_id)
+        return f'p={self.dropprob}, replacement_id={self.replacement_id}'
 

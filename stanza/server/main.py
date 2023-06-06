@@ -21,7 +21,7 @@ def dictstr(arg):
     """
     key, value = arg.split("=")
 
-    if value.lower() == "true" or value.lower() == "false":
+    if value.lower() in ["true", "false"]:
         value = bool(value)
     elif INT_RE.match(value):
         value = int(value)

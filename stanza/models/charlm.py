@@ -57,21 +57,20 @@ def build_vocab(path, cutoff=0):
         counter = Counter()
         filenames = sorted(os.listdir(path))
         for filename in filenames:
-            lines = open(path + '/' + filename).readlines()
+            lines = open(f'{path}/{filename}').readlines()
             for line in lines:
-                counter.update(list(line))
+                counter |= list(line)
         # remove infrequent characters from vocab
         for k in list(counter.keys()):
             if counter[k] < cutoff:
                 del counter[k]
         # a singleton list of all characters
         data = [sorted([x[0] for x in counter.most_common()])]
-        vocab = CharVocab(data) # skip cutoff argument because this has been dealt with
+        return CharVocab(data)
     else:
         lines = open(path).readlines() # reserve '\n'
         data = [list(line) for line in lines]
-        vocab = CharVocab(data, cutoff=cutoff)
-    return vocab
+        return CharVocab(data, cutoff=cutoff)
 
 def load_file(path, vocab, direction):
     lines = open(path).readlines() # reserve '\n'
@@ -84,12 +83,10 @@ def load_data(path, vocab, direction):
     if os.path.isdir(path):
         filenames = sorted(os.listdir(path))
         for filename in filenames:
-            logging.info('Loading data from {}'.format(filename))
-            data = load_file(path + '/' + filename, vocab, direction)
-            yield data
+            logging.info(f'Loading data from {filename}')
+            yield load_file(f'{path}/{filename}', vocab, direction)
     else:
-        data = load_file(path, vocab, direction)
-        yield data
+        yield load_file(path, vocab, direction)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -119,7 +116,7 @@ def parse_args():
     parser.add_argument('--weight_decay', type=float, default=0.0, help="Weight decay")
     parser.add_argument('--momentum', type=float, default=0.0, help='Momentum for SGD.')
     parser.add_argument('--cutoff', type=int, default=1000, help="Frequency cutoff for char vocab. By default we assume a very large corpus.")
-    
+
     parser.add_argument('--report_steps', type=int, default=50, help="Update step interval to report loss")
     parser.add_argument('--save_name', type=str, default=None, help="File name to save the model")
     parser.add_argument('--vocab_save_name', type=str, default=None, help="File name to save the vocab")
@@ -127,8 +124,7 @@ def parse_args():
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA and run on CPU.')
     parser.add_argument('--seed', type=int, default=1234)
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -142,8 +138,10 @@ def main():
         torch.cuda.manual_seed(args.seed)
 
     args = vars(args)
-    logger.info("Running {} character-level language model in {} mode".format(args['direction'], args['mode']))
-    
+    logger.info(
+        f"Running {args['direction']} character-level language model in {args['mode']} mode"
+    )
+
     utils.ensure_dir(args['save_dir'])
 
     if args['mode'] == 'train':
@@ -214,23 +212,29 @@ def evaluate_epoch(args, vocab, data, model, criterion):
     with torch.no_grad():
         for i in range(0, batches.size(1) - 1, args['bptt_size']):
             data, target = get_batch(batches, i, args['bptt_size'])
-            lens = [data.size(1) for i in range(data.size(0))]
+            lens = [data.size(1) for _ in range(data.size(0))]
             if args['cuda']: 
                 data = data.cuda()
                 target = target.cuda()
 
             output, hidden, decoded = model.forward(data, lens, hidden)
             loss = criterion(decoded.view(-1, len(vocab['char'])), target)
-            
+
             hidden = repackage_hidden(hidden)
             total_loss += data.size(1) * loss.data.item()
     return total_loss / batches.size(1)
            
 def train(args):
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-        else '{}/{}_{}_charlm.pt'.format(args['save_dir'], args['shorthand'], args['direction'])
-    vocab_file = args['save_dir'] + '/' + args['vocab_save_name'] if args['vocab_save_name'] is not None \
-        else '{}/{}_vocab.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_{args['direction']}_charlm.pt"
+    )
+    vocab_file = (
+        args['save_dir'] + '/' + args['vocab_save_name']
+        if args['vocab_save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_vocab.pt"
+    )
 
     if os.path.exists(vocab_file):
         logging.info('Loading existing vocab file')
@@ -239,9 +243,11 @@ def train(args):
         logging.info('Building and saving vocab')
         vocab = {'char': build_vocab(args['train_file'] if args['train_dir'] is None else args['train_dir'], cutoff=args['cutoff'])}
         torch.save(vocab['char'].state_dict(), vocab_file)
-    logger.info("Training model with vocab size: {}".format(len(vocab['char'])))
+    logger.info(f"Training model with vocab size: {len(vocab['char'])}")
 
-    model = CharacterLanguageModel(args, vocab, is_forward_lm=True if args['direction'] == 'forward' else False)
+    model = CharacterLanguageModel(
+        args, vocab, is_forward_lm=args['direction'] == 'forward'
+    )
     if args['cuda']: model = model.cuda()
     params = [param for param in model.parameters() if param.requires_grad]
     optimizer = torch.optim.SGD(params, lr=args['lr0'], momentum=args['momentum'], weight_decay=args['weight_decay'])
@@ -279,15 +285,18 @@ def train(args):
     return
 
 def evaluate(args):
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-        else '{}/{}_{}_charlm.pt'.format(args['save_dir'], args['shorthand'], args['direction'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_{args['direction']}_charlm.pt"
+    )
 
     model = CharacterLanguageModel.load(model_file)
     if args['cuda']: model = model.cuda()
     vocab = model.vocab
     data = load_data(args['eval_file'], vocab, args['direction'])
     criterion = torch.nn.CrossEntropyLoss()
-    
+
     loss = evaluate_epoch(args, vocab, data, model, criterion)
     logger.info(
         "| best model | loss {:5.2f} | ppl {:8.2f}".format(

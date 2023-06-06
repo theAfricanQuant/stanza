@@ -79,8 +79,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1234)
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA.')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -94,7 +93,7 @@ def main():
         torch.cuda.manual_seed(args.seed)
 
     args = vars(args)
-    print("Running parser in {} mode".format(args['mode']))
+    print(f"Running parser in {args['mode']} mode")
 
     if args['mode'] == 'train':
         train(args)
@@ -103,18 +102,21 @@ def main():
 
 def train(args):
     utils.ensure_dir(args['save_dir'])
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-            else '{}/{}_parser.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_parser.pt"
+    )
 
     # load pretrained vectors if needed
     pretrain = None
     if args['pretrain']:
         vec_file = utils.get_wordvec_file(args['wordvec_dir'], args['shorthand'])
-        pretrain_file = '{}/{}.pretrain.pt'.format(args['save_dir'], args['shorthand'])
+        pretrain_file = f"{args['save_dir']}/{args['shorthand']}.pretrain.pt"
         pretrain = Pretrain(pretrain_file, vec_file, args['pretrain_max_vocab'])
 
     # load data
-    print("Loading data with batch size {}...".format(args['batch_size']))
+    print(f"Loading data with batch size {args['batch_size']}...")
     train_doc = Document(CoNLL.conll2dict(input_file=args['train_file']))
     train_batch = DataLoader(train_doc, args['batch_size'], args, pretrain, evaluation=False)
     vocab = train_batch.vocab
@@ -185,15 +187,15 @@ def train(args):
                 print("")
 
             if global_step - last_best_step >= args['max_steps_before_stop']:
-                if not using_amsgrad:
+                if using_amsgrad:
+                    do_break = True
+                    break
+
+                else:
                     print("Switching to AMSGrad")
                     last_best_step = global_step
                     using_amsgrad = True
                     trainer.optimizer = optim.Adam(trainer.model.parameters(), amsgrad=True, lr=args['lr'], betas=(.9, args['beta2']), eps=1e-6)
-                else:
-                    do_break = True
-                    break
-
             if global_step >= args['max_steps']:
                 do_break = True
                 break
@@ -202,7 +204,7 @@ def train(args):
 
         train_batch.reshuffle()
 
-    print("Training ended with {} steps.".format(global_step))
+    print(f"Training ended with {global_step} steps.")
 
     best_f, best_eval = max(dev_score_history)*100, np.argmax(dev_score_history)+1
     print("Best dev F1 = {:.2f}, at iteration = {}".format(best_f, best_eval * args['eval_interval']))
@@ -211,15 +213,18 @@ def evaluate(args):
     # file paths
     system_pred_file = args['output_file']
     gold_file = args['gold_file']
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-            else '{}/{}_parser.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_parser.pt"
+    )
 
     # load pretrain; note that we allow the pretrain_file to be non-existent
-    pretrain_file = '{}/{}.pretrain.pt'.format(args['save_dir'], args['shorthand'])
+    pretrain_file = f"{args['save_dir']}/{args['shorthand']}.pretrain.pt"
     pretrain = Pretrain(pretrain_file)
 
     # load model
-    print("Loading model from: {}".format(model_file))
+    print(f"Loading model from: {model_file}")
     use_cuda = args['cuda'] and not args['cpu']
     trainer = Trainer(pretrain=pretrain, model_file=model_file, use_cuda=use_cuda)
     loaded_args, vocab = trainer.args, trainer.vocab
@@ -230,18 +235,15 @@ def evaluate(args):
             loaded_args[k] = args[k]
 
     # load data
-    print("Loading data with batch size {}...".format(args['batch_size']))
+    print(f"Loading data with batch size {args['batch_size']}...")
     doc = Document(CoNLL.conll2dict(input_file=args['eval_file']))
     batch = DataLoader(doc, args['batch_size'], loaded_args, pretrain, vocab=vocab, evaluation=True, sort_during_eval=True)
 
+    preds = []
     if len(batch) > 0:
         print("Start evaluation...")
-        preds = []
-        for i, b in enumerate(batch):
+        for b in batch:
             preds += trainer.predict(b)
-    else:
-        # skip eval if dev data does not exist
-        preds = []
     preds = utils.unsort(preds, batch.data_orig_idx)
 
     # write to file and score

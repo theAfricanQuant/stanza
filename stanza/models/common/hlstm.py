@@ -79,7 +79,7 @@ class HighwayLSTM(nn.Module):
         self.drop = nn.Dropout(dropout, inplace=True)
 
         in_size = input_size
-        for l in range(num_layers):
+        for _ in range(num_layers):
             self.lstm.append(PackedLSTM(in_size, hidden_size, num_layers=1, bias=bias,
                 batch_first=batch_first, dropout=0, bidirectional=bidirectional, rec_dropout=rec_dropout))
             self.highway.append(nn.Linear(in_size, hidden_size * self.num_directions))

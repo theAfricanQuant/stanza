@@ -40,8 +40,8 @@ class Trainer(object):
             self.model = None if args['dict_only'] else Seq2SeqModel(args, emb_matrix=emb_matrix, use_cuda=use_cuda)
             self.vocab = vocab
             # dict-based components
-            self.word_dict = dict()
-            self.composite_dict = dict()
+            self.word_dict = {}
+            self.composite_dict = {}
         if not self.args['dict_only']:
             if self.args.get('edit', False):
                 self.crit = loss.MixLoss(self.vocab['char'].size, self.args['alpha'])
@@ -116,10 +116,7 @@ class Trainer(object):
         assert len(edited) == len(words)
         final = []
         for lem, w in zip(edited, words):
-            if len(lem) == 0 or constant.UNK in lem:
-                final += [w] # invalid prediction, fall back to word
-            else:
-                final += [lem]
+            final += [w] if len(lem) == 0 or constant.UNK in lem else [lem]
         return final
 
     def update_lr(self, new_lr):
@@ -129,7 +126,7 @@ class Trainer(object):
         """ Train a dict lemmatizer given training (word, pos, lemma) triples. """
         # accumulate counter
         ctr = Counter()
-        ctr.update([(p[0], p[1], p[2]) for p in triples])
+        ctr |= [(p[0], p[1], p[2]) for p in triples]
         # find the most frequent mappings
         for p, _ in ctr.most_common():
             w, pos, l = p
@@ -158,9 +155,7 @@ class Trainer(object):
         skip = []
         for p in pairs:
             w, pos = p
-            if (w,pos) in self.composite_dict:
-                skip.append(True)
-            elif w in self.word_dict:
+            if (w, pos) in self.composite_dict or w in self.word_dict:
                 skip.append(True)
             else:
                 skip.append(False)
@@ -192,7 +187,7 @@ class Trainer(object):
                 }
         try:
             torch.save(params, filename)
-            logger.info("Model saved to {}".format(filename))
+            logger.info(f"Model saved to {filename}")
         except BaseException:
             logger.warning("Saving failed... continuing anyway.")
 
@@ -200,7 +195,7 @@ class Trainer(object):
         try:
             checkpoint = torch.load(filename, lambda storage, loc: storage)
         except BaseException:
-            logger.exception("Cannot load model from {}".format(filename))
+            logger.exception(f"Cannot load model from {filename}")
             sys.exit(1)
         self.args = checkpoint['config']
         self.word_dict, self.composite_dict = checkpoint['dicts']

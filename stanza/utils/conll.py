@@ -73,10 +73,7 @@ class CoNLL:
         for field in FIELD_TO_IDX:
             value = token_conll[FIELD_TO_IDX[field]]
             if value != '_':
-                if field == HEAD:
-                    token_dict[field] = int(value)
-                else:
-                    token_dict[field] = value
+                token_dict[field] = int(value) if field == HEAD else value
             # special case if text is '_'
             if token_conll[FIELD_TO_IDX[TEXT]] == '_':
                 token_dict[TEXT] = token_conll[FIELD_TO_IDX[TEXT]]
@@ -88,13 +85,9 @@ class CoNLL:
         """ Load the CoNLL-U format data from file or string into lists of dictionaries.
         """
         assert any([input_file, input_str]) and not all([input_file, input_str]), 'either input input file or input string'
-        if input_str:
-            infile = io.StringIO(input_str)
-        else:
-            infile = open(input_file)
+        infile = io.StringIO(input_str) if input_str else open(input_file)
         doc_conll = CoNLL.load_conll(infile, ignore_gapping)
-        doc_dict = CoNLL.convert_conll(doc_conll)
-        return doc_dict
+        return CoNLL.convert_conll(doc_conll)
 
     @staticmethod
     def convert_dict(doc_dict):
@@ -119,7 +112,7 @@ class CoNLL:
         Input: dictionary format token, which is a dictionaries for the token.
         Output: CoNLL-U format token, which is a list for the token.
         """
-        token_conll = ['_' for i in range(FIELD_NUM)]
+        token_conll = ['_' for _ in range(FIELD_NUM)]
         for key in token_dict:
             if key in FIELD_TO_IDX:
                 token_conll[FIELD_TO_IDX[key]] = str(token_dict[key])

@@ -23,10 +23,7 @@ class DepparseProcessor(UDProcessor):
         super().__init__(config, pipeline, use_gpu)
 
     def _set_up_requires(self):
-        if self._pretagged:
-            self._requires = set()
-        else:
-            self._requires = self.__class__.REQUIRES_DEFAULT
+        self._requires = set() if self._pretagged else self.__class__.REQUIRES_DEFAULT
 
     def _set_up_model(self, config, use_gpu):
         self._pretagged = config.get('pretagged')
@@ -38,7 +35,7 @@ class DepparseProcessor(UDProcessor):
             document, self.config['batch_size'], self.config, self.pretrain, vocab=self.vocab, evaluation=True,
             sort_during_eval=True)
         preds = []
-        for i, b in enumerate(batch):
+        for b in batch:
             preds += self.trainer.predict(b)
         preds = unsort(preds, batch.data_orig_idx)
         batch.doc.set([doc.HEAD, doc.DEPREL], [y for x in preds for y in x])

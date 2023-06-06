@@ -214,8 +214,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_dir', type=str, help='Input dir for various models.')
     parser.add_argument('--output_dir', type=str, help='Output dir for various models.')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 def process_dirs(args):
@@ -232,13 +231,13 @@ def process_dirs(args):
             processor = ending_to_processor[processor]
             # copy file
             input_path = os.path.join(args.input_dir, dir, model)
-            output_path = os.path.join(args.output_dir, lang, processor, package + '.pt')
+            output_path = os.path.join(args.output_dir, lang, processor, f'{package}.pt')
             ensure_dir(Path(output_path).parent)
             shutil.copy(input_path, output_path)
             # maintain md5
             md5 = get_md5(output_path)
             # maintain dependencies
-            if processor == 'pos' or processor == 'depparse':
+            if processor in ['pos', 'depparse']:
                 dependencies = [{'model': 'pretrain', 'package': package}]
             elif processor == 'ner':
                 charlm_package = default_charlms[lang]
@@ -259,7 +258,7 @@ def process_defaults(args):
     resources = json.load(open(os.path.join(args.output_dir, 'resources.json')))
     for lang in resources:
         if lang not in default_treebanks: 
-            print(lang + ' not in default treebanks!!!')
+            print(f'{lang} not in default treebanks!!!')
             continue
         print(lang)
 
@@ -273,18 +272,20 @@ def process_defaults(args):
             ner_package = default_ners[lang]
             charlm_package = default_charlms[lang]
             default_dependencies['ner'] = [{'model': 'forward_charlm', 'package': charlm_package}, {'model': 'backward_charlm', 'package': charlm_package}]
-        
+
         processors = ['tokenize', 'mwt', 'lemma', 'pos', 'depparse', 'ner', 'pretrain', 'forward_charlm', 'backward_charlm'] if lang in default_ners else ['tokenize', 'mwt', 'lemma', 'pos', 'depparse', 'pretrain']
         for processor in processors:
             if processor == 'ner': package = ner_package
             elif processor in ['forward_charlm', 'backward_charlm']: package = charlm_package
             else: package = ud_package
 
-            if os.path.exists(os.path.join(args.output_dir, lang, processor, package + '.pt')):
+            if os.path.exists(
+                os.path.join(args.output_dir, lang, processor, f'{package}.pt')
+            ):
                 if processor in ['tokenize', 'mwt', 'lemma', 'pos', 'depparse', 'ner']:
                      default_processors[processor] = package
                 zipf.write(processor)
-                zipf.write(os.path.join(processor, package + '.pt'))
+                zipf.write(os.path.join(processor, f'{package}.pt'))
         zipf.close()
         default_md5 = get_md5(os.path.join(args.output_dir, lang, 'default.zip'))
         resources[lang]['default_processors'] = default_processors
@@ -299,7 +300,7 @@ def process_lcode(args):
     resources_new = {}
     for lang in resources:
         if lang not in lcode2lang:
-            print(lang + ' not found in lcode2lang!')
+            print(f'{lang} not found in lcode2lang!')
             continue
         lang_name = lcode2lang[lang]
         resources[lang]['lang_name'] = lang_name

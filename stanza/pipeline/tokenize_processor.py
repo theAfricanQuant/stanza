@@ -65,7 +65,7 @@ class TokenizeProcessor(UDProcessor):
 
     def process(self, document):
         assert isinstance(document, str) or (self.config.get('pretokenized') or self.config.get('no_ssplit', False)), \
-            "If neither 'pretokenized' or 'no_ssplit' option is enabled, the input to the TokenizerProcessor must be a string."
+                "If neither 'pretokenized' or 'no_ssplit' option is enabled, the input to the TokenizerProcessor must be a string."
 
         if self.config.get('pretokenized'):
             raw_text, document = self.process_pre_tokenized_text(document)
@@ -76,7 +76,7 @@ class TokenizeProcessor(UDProcessor):
             # set up batches
             if self.config.get('lang') == 'vi':
                 # special processing is due for Vietnamese
-                text = '\n\n'.join([x for x in document.split('\n\n')]).rstrip()
+                text = '\n\n'.join(list(document.split('\n\n'))).rstrip()
                 dummy_labels = '\n\n'.join(['0' * len(x) for x in text.split('\n\n')])
                 data = paras_to_chunks(text, dummy_labels)
                 batches = DataLoader(self.config, input_data=data, vocab=self.vocab, evaluation=True)

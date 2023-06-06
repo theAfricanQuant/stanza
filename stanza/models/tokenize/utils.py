@@ -12,27 +12,26 @@ from stanza.models.common.doc import *
 logger = logging.getLogger('stanza')
 
 def load_mwt_dict(filename):
-    if filename is not None:
-        with open(filename, 'r') as f:
-            mwt_dict0 = json.load(f)
-
-        mwt_dict = dict()
-        for item in mwt_dict0:
-            (key, expansion), count = item
-
-            if key not in mwt_dict or mwt_dict[key][1] < count:
-                mwt_dict[key] = (expansion, count)
-
-        return mwt_dict
-    else:
+    if filename is None:
         return
+    with open(filename, 'r') as f:
+        mwt_dict0 = json.load(f)
+
+    mwt_dict = {}
+    for item in mwt_dict0:
+        (key, expansion), count = item
+
+        if key not in mwt_dict or mwt_dict[key][1] < count:
+            mwt_dict[key] = (expansion, count)
+
+    return mwt_dict
 
 def process_sentence(sentence, mwt_dict=None):
     sent = []
     i = 0
     for tok, p, additional_info in sentence:
         expansion = None
-        if (p == 3 or p == 4) and mwt_dict is not None:
+        if p in [3, 4] and mwt_dict is not None:
             # MWT found, (attempt to) expand it!
             if tok in mwt_dict:
                 expansion = mwt_dict[tok][0]
@@ -48,7 +47,7 @@ def process_sentence(sentence, mwt_dict=None):
         else:
             if len(tok) <= 0:
                 continue
-            if p == 3 or p == 4:
+            if p in [3, 4]:
                 additional_info['MWT'] = 'Yes'
             infostr = None if len(additional_info) == 0 else '|'.join([f"{k}={additional_info[k]}" for k in additional_info])
             sent.append({ID: f'{i+1}', TEXT: tok})
@@ -68,7 +67,7 @@ def output_predictions(output_file, trainer, data_generator, vocab, mwt_dict, ma
     paragraphs = []
     for i, p in enumerate(data_generator.sentences):
         start = 0 if i == 0 else paragraphs[-1][2]
-        length = sum([len(x) for x in p])
+        length = sum(len(x) for x in p)
         paragraphs += [(i, start, start+length, length+1)] # para idx, start idx, end idx, length
 
     paragraphs = list(sorted(paragraphs, key=lambda x: x[3], reverse=True))
@@ -85,7 +84,7 @@ def output_predictions(output_file, trainer, data_generator, vocab, mwt_dict, ma
     for i in range(batches):
         batchparas = paragraphs[i * batch_size : (i + 1) * batch_size]
         offsets = [x[1] for x in batchparas]
-        t += sum([x[3] for x in batchparas])
+        t += sum(x[3] for x in batchparas)
 
         batch = data_generator.next(eval_offsets=offsets)
         raw = batch[3]
@@ -113,7 +112,7 @@ def output_predictions(output_file, trainer, data_generator, vocab, mwt_dict, ma
                     pred[j] += [pred1[j, :advance]]
                     idx[j] += advance
 
-                if all([idx1 >= N for idx1, N in zip(idx, Ns)]):
+                if all(idx1 >= N for idx1, N in zip(idx, Ns)):
                     break
                 batch = data_generator.next(eval_offsets=[x+y for x, y in zip(idx, offsets)])
 
@@ -166,10 +165,10 @@ def output_predictions(output_file, trainer, data_generator, vocab, mwt_dict, ma
                     char_offset += st0 + len(tok0)
                     additional_info = {START_CHAR: st, END_CHAR: st + len(tok0)}
                 else:
-                    additional_info = dict()
+                    additional_info = {}
                 current_sent += [(tok, p, additional_info)]
                 current_tok = ''
-                if (p == 2 or p == 4) and not no_ssplit:
+                if p in [2, 4] and not no_ssplit:
                     doc.append(process_sentence(current_sent, mwt_dict))
                     current_sent = []
 
@@ -184,7 +183,7 @@ def output_predictions(output_file, trainer, data_generator, vocab, mwt_dict, ma
                     char_offset += st0 + len(tok0)
                     additional_info = {END_CHAR: st, END_CHAR: st + len(tok0)}
                 else:
-                    additional_info = dict()
+                    additional_info = {}
                 current_sent += [(tok, 2, additional_info)]
 
         if len(current_sent):
@@ -203,8 +202,11 @@ def eval_model(args, trainer, batches, vocab, mwt_dict):
         pred = [mapping[p] for p in pred]
         gold = [mapping[g] for g in gold]
 
-        lastp = -1; lastg = -1
-        tp = 0; fp = 0; fn = 0
+        lastp = -1
+        lastg = -1
+        tp = 0
+        fp = 0
+        fn = 0
         for i, (p, g) in enumerate(zip(pred, gold)):
             if p == g > 0 and lastp == lastg:
                 lastp = i
@@ -223,10 +225,7 @@ def eval_model(args, trainer, batches, vocab, mwt_dict):
                 lastg = i
                 fn += 1
 
-        if tp == 0:
-            return 0
-        else:
-            return 2 * tp / (2 * tp + fp + fn)
+        return 0 if tp == 0 else 2 * tp / (2 * tp + fp + fn)
 
     f1tok = f1(all_preds, labels, {0:0, 1:1, 2:1, 3:1, 4:1})
     f1sent = f1(all_preds, labels, {0:0, 1:0, 2:1, 3:0, 4:1})

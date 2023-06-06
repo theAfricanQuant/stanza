@@ -29,7 +29,7 @@ class POSProcessor(UDProcessor):
             document, self.config['batch_size'], self.config, self.pretrain, vocab=self.vocab, evaluation=True,
             sort_during_eval=True)
         preds = []
-        for i, b in enumerate(batch):
+        for b in batch:
             preds += self.trainer.predict(b)
         preds = unsort(preds, batch.data_orig_idx)
         batch.doc.set([doc.UPOS, doc.XPOS, doc.FEATS], [y for x in preds for y in x])

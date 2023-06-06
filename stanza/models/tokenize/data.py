@@ -55,8 +55,7 @@ class DataLoader:
         logger.debug(f"{len(self.sentence_ids)} sentences loaded.")
 
     def init_vocab(self):
-        vocab = Vocab(self.data, self.args['lang'])
-        return vocab
+        return Vocab(self.data, self.args['lang'])
 
     def init_sent_ids(self):
         self.sentence_ids = []
@@ -70,7 +69,7 @@ class DataLoader:
         res = []
         funcs = []
         for feat_func in self.args['feat_funcs']:
-            if feat_func == 'end_of_para' or feat_func == 'start_of_para':
+            if feat_func in ['end_of_para', 'start_of_para']:
                 # skip for position-dependent features
                 continue
             if feat_func == 'space_before':
@@ -85,7 +84,7 @@ class DataLoader:
                 raise Exception('Feature function "{}" is undefined.'.format(feat_func))
 
             funcs.append(func)
-        
+
         # stacking all featurize functions
         composite_func = lambda x: list(map(lambda f: f(x), funcs))
 
@@ -104,7 +103,7 @@ class DataLoader:
                 f = 1 if i == 0 else 0
                 feats.append(f)
             current += [[unit, label, feats]]
-            if label1 == 2 or label1 == 4: # end of sentence
+            if label1 in [2, 4]: # end of sentence
                 if len(current) <= self.args['max_seqlen']:
                     # get rid of sentences that are too long during training of the tokenizer
                     res += [process_sentence(current)]

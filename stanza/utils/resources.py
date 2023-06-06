@@ -33,16 +33,19 @@ def build_default_config(resources, lang, dir, load_list):
         # handle case when spacy is specified as tokenizer
         if processor == TOKENIZE and package == 'spacy':
             default_config[f"{TOKENIZE}_with_spacy"] = True
-        # handle case when identity is specified as lemmatizer
         elif processor == LEMMA and package == 'identity':
             default_config[f"{LEMMA}_use_identity"] = True
         else:
-            default_config[f"{processor}_model_path"] = os.path.join(dir, lang, processor, package + '.pt')
-        
+            default_config[f"{processor}_model_path"] = os.path.join(
+                dir, lang, processor, f'{package}.pt'
+            )
+
         if not dependencies: continue
         for dependency in dependencies:
             dep_processor, dep_model = dependency
-            default_config[f"{processor}_{dep_processor}_path"] = os.path.join(dir, lang, dep_processor, dep_model + '.pt')
+            default_config[f"{processor}_{dep_processor}_path"] = os.path.join(
+                dir, lang, dep_processor, f'{dep_model}.pt'
+            )
 
     return default_config
 
@@ -67,7 +70,7 @@ def download_file(url, path):
     with open(path, 'wb') as f:
         file_size = int(r.headers.get('content-length'))
         default_chunk_size = 131072
-        desc = 'Downloading ' + url
+        desc = f'Downloading {url}'
         with tqdm(total=file_size, unit='B', unit_scale=True, disable=not verbose, desc=desc) as pbar:
             for chunk in r.iter_content(chunk_size=default_chunk_size):
                 if chunk:
@@ -86,16 +89,14 @@ def request_file(url, path, md5=None):
 def sort_processors(processor_list):
     sorted_list = []
     for processor in PIPELINE_NAMES:
-        for item in processor_list:
-            if item[0] == processor:
-                sorted_list.append(item)
+        sorted_list.extend(item for item in processor_list if item[0] == processor)
     return sorted_list
 
 def maintain_processor_list(resources, lang, package, processors):
     processor_list = {}
     # resolve processor models
     if processors:
-        logger.debug(f'Processing parameter "processors"...')
+        logger.debug('Processing parameter "processors"...')
         for key, value in processors.items():
             assert(key in PIPELINE_NAMES)
             assert(isinstance(key, str) and isinstance(value, str))
@@ -120,7 +121,7 @@ def maintain_processor_list(resources, lang, package, processors):
                 logger.warning(f'Can not find {key}: {value} from official model list. Ignoring it.')
     # resolve package
     if package:
-        logger.debug(f'Processing parameter "package"...')
+        logger.debug('Processing parameter "package"...')
         if package == 'default':
             for key, value in resources[lang]['default_processors'].items():
                 if key not in processor_list:
@@ -139,8 +140,7 @@ def maintain_processor_list(resources, lang, package, processors):
                         logger.debug(f'{key}: {package} is overwritten by {key}: {processors[key]}.')
             if not flag: logger.warning((f'Can not find package: {package}.'))
     processor_list = [[key, value] for key, value in processor_list.items()]
-    processor_list = sort_processors(processor_list)
-    return processor_list
+    return sort_processors(processor_list)
 
 def add_dependencies(resources, lang, processor_list):    
     default_dependencies = resources[lang]['default_dependencies']
@@ -233,16 +233,19 @@ def download(lang='en', dir=DEFAULT_MODEL_DIR, package='default', processors={},
     # Default: download zipfile and unzip
     if package == 'default' and (processors is None or len(processors) == 0):
         logger.info(f'Downloading default packages for language: {lang} ({lang_name})...')
-        request_file(f'{url}/{__resources_version__}/{lang}/default.zip', os.path.join(dir, lang, f'default.zip'), md5=resources[lang]['default_md5'])
+        request_file(
+            f'{url}/{__resources_version__}/{lang}/default.zip',
+            os.path.join(dir, lang, 'default.zip'),
+            md5=resources[lang]['default_md5'],
+        )
         unzip(os.path.join(dir, lang), 'default.zip')
-    # Customize: maintain download list
     else:
         download_list = maintain_processor_list(resources, lang, package, processors)
         download_list = add_dependencies(resources, lang, download_list)
         download_list = flatten_processor_list(download_list)
         download_table = make_table(['Processor', 'Package'], download_list)
         logger.info(f'Downloading these customized packages for language: {lang} ({lang_name})...\n{download_table}')
-        
+
         # Download packages
         for key, value in download_list:
             try:
