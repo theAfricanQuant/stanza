@@ -68,8 +68,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1234)
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA.')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -83,7 +82,7 @@ def main():
         torch.cuda.manual_seed(args.seed)
 
     args = vars(args)
-    print("Running MWT expander in {} mode".format(args['mode']))
+    print(f"Running MWT expander in {args['mode']} mode")
 
     if args['mode'] == 'train':
         train(args)
@@ -93,7 +92,7 @@ def main():
 def train(args):
     # load data
     print('max_dec_len:', args['max_dec_len'])
-    print("Loading data with batch size {}...".format(args['batch_size']))
+    print(f"Loading data with batch size {args['batch_size']}...")
     train_doc = Document(CoNLL.conll2dict(input_file=args['train_file']))
     train_batch = DataLoader(train_doc, args['batch_size'], args, evaluation=False)
     vocab = train_batch.vocab
@@ -102,8 +101,11 @@ def train(args):
     dev_batch = DataLoader(dev_doc, args['batch_size'], args, vocab=vocab, evaluation=True)
 
     utils.ensure_dir(args['save_dir'])
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-            else '{}/{}_mwt_expander.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_mwt_expander.pt"
+    )
 
     # pred and gold path
     system_pred_file = args['output_file']
@@ -143,7 +145,7 @@ def train(args):
         # start training
         for epoch in range(1, args['num_epoch']+1):
             train_loss = 0
-            for i, batch in enumerate(train_batch):
+            for batch in train_batch:
                 start_time = time.time()
                 global_step += 1
                 loss = trainer.update(batch, eval=False) # update step
@@ -156,7 +158,7 @@ def train(args):
             # eval on dev
             print("Evaluating on dev set...")
             dev_preds = []
-            for i, batch in enumerate(dev_batch):
+            for batch in dev_batch:
                 preds = trainer.predict(batch)
                 dev_preds += preds
             if args.get('ensemble_dict', False) and args.get('ensemble_early_stop', False):
@@ -184,7 +186,7 @@ def train(args):
             dev_score_history += [dev_score]
             print("")
 
-        print("Training ended with {} epochs.".format(epoch))
+        print(f"Training ended with {epoch} epochs.")
 
         best_f, best_epoch = max(dev_score_history)*100, np.argmax(dev_score_history)+1
         print("Best dev F1 = {:.2f}, at epoch = {}".format(best_f, best_epoch))
@@ -204,8 +206,11 @@ def evaluate(args):
     # file paths
     system_pred_file = args['output_file']
     gold_file = args['gold_file']
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-            else '{}/{}_mwt_expander.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_mwt_expander.pt"
+    )
 
     # load model
     use_cuda = args['cuda'] and not args['cpu']
@@ -218,7 +223,7 @@ def evaluate(args):
     print('max_dec_len:', loaded_args['max_dec_len'])
 
     # load data
-    print("Loading data with batch size {}...".format(args['batch_size']))
+    print(f"Loading data with batch size {args['batch_size']}...")
     doc = Document(CoNLL.conll2dict(input_file=args['eval_file']))
     batch = DataLoader(doc, args['batch_size'], loaded_args, vocab=vocab, evaluation=True)
 
@@ -230,7 +235,7 @@ def evaluate(args):
         else:
             print("Running the seq2seq model...")
             preds = []
-            for i, b in enumerate(batch):
+            for b in batch:
                 preds += trainer.predict(b)
 
             if loaded_args.get('ensemble_dict', False):

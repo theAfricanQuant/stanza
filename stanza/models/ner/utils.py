@@ -38,7 +38,7 @@ def to_bio2(tags):
             new_tags.append(tag)
         elif tag[0] == 'I':
             if i == 0 or tags[i-1] == 'O' or tags[i-1][1:] != tag[1:]:
-                new_tags.append('B' + tag[1:])
+                new_tags.append(f'B{tag[1:]}')
             else:
                 new_tags.append(tag)
         else:
@@ -62,19 +62,18 @@ def bio2_to_bioes(tags):
         else:
             if len(tag) < 2:
                 raise Exception(f"Invalid BIO2 tag found: {tag}")
-            else:
-                if tag[:2] == 'I-': # convert to E- if next tag is not I-
-                    if i+1 < len(tags) and tags[i+1][:2] == 'I-':
-                        new_tags.append(tag)
-                    else:
-                        new_tags.append('E-' + tag[2:])
-                elif tag[:2] == 'B-': # convert to S- if next tag is not I-
-                    if i+1 < len(tags) and tags[i+1][:2] == 'I-':
-                        new_tags.append(tag)
-                    else:
-                        new_tags.append('S-' + tag[2:])
+            if tag[:2] == 'I-': # convert to E- if next tag is not I-
+                if i+1 < len(tags) and tags[i+1][:2] == 'I-':
+                    new_tags.append(tag)
                 else:
-                    raise Exception(f"Invalid IOB tag found: {tag}")
+                    new_tags.append(f'E-{tag[2:]}')
+            elif tag[:2] == 'B-': # convert to S- if next tag is not I-
+                if i+1 < len(tags) and tags[i+1][:2] == 'I-':
+                    new_tags.append(tag)
+                else:
+                    new_tags.append(f'S-{tag[2:]}')
+            else:
+                raise Exception(f"Invalid IOB tag found: {tag}")
     return new_tags
 
 def decode_from_bioes(tags):
@@ -91,7 +90,7 @@ def decode_from_bioes(tags):
     cur_type = None
 
     def flush():
-        if len(ent_idxs) > 0:
+        if ent_idxs:
             res.append({
                 'start': ent_idxs[0], 
                 'end': ent_idxs[-1], 

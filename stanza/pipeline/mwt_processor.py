@@ -29,7 +29,7 @@ class MWTProcessor(UDProcessor):
                 preds = dict_preds
             else:
                 preds = []
-                for i, b in enumerate(batch):
+                for b in batch:
                     preds += self.trainer.predict(b)
 
                 if self.config.get('ensemble_dict', False):

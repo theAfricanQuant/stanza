@@ -22,11 +22,7 @@ class DataLoader:
         data = self.load_doc(self.doc)
 
         # handle vocab
-        if vocab is None:
-            self.vocab = self.init_vocab(data)
-        else:
-            self.vocab = vocab
-        
+        self.vocab = self.init_vocab(data) if vocab is None else vocab
         # handle pretrain; pretrain vocab is used when args['pretrain'] == True and pretrain is not None
         self.pretrain_vocab = None
         if pretrain is not None and args['pretrain']:
@@ -46,7 +42,7 @@ class DataLoader:
 
         # chunk into batches
         self.data = self.chunk_batches(data)
-        logger.debug("{} batches created.".format(len(self.data)))
+        logger.debug(f"{len(self.data)} batches created.")
 
     def init_vocab(self, data):
         assert self.eval == False # for eval vocab must exist
@@ -55,18 +51,21 @@ class DataLoader:
         uposvocab = WordVocab(data, self.args['shorthand'], idx=1)
         xposvocab = xpos_vocab_factory(data, self.args['shorthand'])
         featsvocab = FeatureVocab(data, self.args['shorthand'], idx=3)
-        vocab = MultiVocab({'char': charvocab,
-                            'word': wordvocab,
-                            'upos': uposvocab,
-                            'xpos': xposvocab,
-                            'feats': featsvocab})
-        return vocab
+        return MultiVocab(
+            {
+                'char': charvocab,
+                'word': wordvocab,
+                'upos': uposvocab,
+                'xpos': xposvocab,
+                'feats': featsvocab,
+            }
+        )
 
     def preprocess(self, data, vocab, pretrain_vocab, args):
         processed = []
         for sent in data:
             processed_sent = [vocab['word'].map([w[0] for w in sent])]
-            processed_sent += [[vocab['char'].map([x for x in w[0]]) for w in sent]]
+            processed_sent += [[vocab['char'].map(list(w[0])) for w in sent]]
             processed_sent += [vocab['upos'].map([w[1] for w in sent])]
             processed_sent += [vocab['xpos'].map([w[2] for w in sent])]
             processed_sent += [vocab['feats'].map([w[3] for w in sent])]

@@ -29,7 +29,7 @@ class NERProcessor(UDProcessor):
         batch = DataLoader(
             document, self.config['batch_size'], self.config, vocab=self.vocab, evaluation=True, preprocess_tags=False)
         preds = []
-        for i, b in enumerate(batch):
+        for b in batch:
             preds += self.trainer.predict(b)
         batch.doc.set([doc.NER], [y for x in preds for y in x], to_token=True)
         # collect entities into document attribute

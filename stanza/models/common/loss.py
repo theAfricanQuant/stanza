@@ -10,8 +10,7 @@ import stanza.models.common.seq2seq_constant as constant
 def SequenceLoss(vocab_size):
     weight = torch.ones(vocab_size)
     weight[constant.PAD_ID] = 0
-    crit = nn.NLLLoss(weight)
-    return crit
+    return nn.NLLLoss(weight)
 
 class MixLoss(nn.Module):
     """
@@ -28,8 +27,7 @@ class MixLoss(nn.Module):
     def forward(self, seq_inputs, seq_targets, class_inputs, class_targets):
         sl = self.seq_loss(seq_inputs, seq_targets)
         cel = self.ce_loss(class_inputs, class_targets)
-        loss = sl + self.alpha * cel
-        return loss
+        return sl + self.alpha * cel
 
 class MaxEntropySequenceLoss(nn.Module):
     """
@@ -57,6 +55,5 @@ class MaxEntropySequenceLoss(nn.Module):
         masked_inputs = inputs.clone().masked_fill_(mask, 0.0)
         p = torch.exp(masked_inputs)
         ent_loss = p.mul(masked_inputs).sum() / inputs.size(0) # average over minibatch
-        loss = nll_loss + self.alpha * ent_loss
-        return loss
+        return nll_loss + self.alpha * ent_loss
 

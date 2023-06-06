@@ -37,7 +37,7 @@ class LemmaProcessor(UDProcessor):
 
     def _set_up_requires(self):
         if self.config.get('pos') and not self.use_identity:
-            self._requires = LemmaProcessor.REQUIRES_DEFAULT.union(set([POS]))
+            self._requires = LemmaProcessor.REQUIRES_DEFAULT.union({POS})
         else:
             self._requires = LemmaProcessor.REQUIRES_DEFAULT
 
@@ -61,7 +61,7 @@ class LemmaProcessor(UDProcessor):
 
             preds = []
             edits = []
-            for i, b in enumerate(seq2seq_batch):
+            for b in seq2seq_batch:
                 ps, es = self.trainer.predict(b, self.config['beam_size'])
                 preds += ps
                 if es is not None:

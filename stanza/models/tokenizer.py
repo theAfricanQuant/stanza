@@ -66,8 +66,7 @@ def parse_args():
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA and run on CPU.')
     parser.add_argument('--seed', type=int, default=1234)
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -81,12 +80,15 @@ def main():
         torch.cuda.manual_seed(args.seed)
 
     args = vars(args)
-    print("Running tokenizer in {} mode".format(args['mode']))
+    print(f"Running tokenizer in {args['mode']} mode")
 
     args['feat_funcs'] = ['space_before', 'capitalized', 'all_caps', 'numeric']
     args['feat_dim'] = len(args['feat_funcs'])
-    args['save_name'] = "{}/{}".format(args['save_dir'], args['save_name']) if args['save_name'] is not None \
-            else '{}/{}_tokenizer.pt'.format(args['save_dir'], args['shorthand'])
+    args['save_name'] = (
+        f"{args['save_dir']}/{args['save_name']}"
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_tokenizer.pt"
+    )
     utils.ensure_dir(args['save_dir'])
 
     if args['mode'] == 'train':
@@ -116,7 +118,7 @@ def train(args):
     trainer = Trainer(args=args, vocab=vocab, use_cuda=args['cuda'])
 
     if args['load_name'] is not None:
-        load_name = "{}/{}".format(args['save_dir'], args['load_name'])
+        load_name = f"{args['save_dir']}/{args['load_name']}"
         trainer.load(load_name)
     trainer.change_lr(args['lr0'])
 
@@ -155,7 +157,7 @@ def train(args):
                 trainer.save(args['save_name'])
             print('\t'.join(reports))
 
-    print('Best dev score={} at step {}'.format(best_dev_score, best_dev_step))
+    print(f'Best dev score={best_dev_score} at step {best_dev_step}')
 
 def evaluate(args):
     mwt_dict = load_mwt_dict(args['mwt_json_file'])

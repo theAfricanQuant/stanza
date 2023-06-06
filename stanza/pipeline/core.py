@@ -102,13 +102,13 @@ class Pipeline:
         # configs that are the same for all processors
         pipeline_level_configs = {'lang': lang, 'mode': 'predict'}
         self.use_gpu = torch.cuda.is_available() and use_gpu
-        logger.info("Use device: {}".format("gpu" if self.use_gpu else "cpu"))
-        
+        logger.info(f'Use device: {"gpu" if self.use_gpu else "cpu"}')
+
         # set up processors
         pipeline_reqs_exceptions = []
         for item in self.load_list:
             processor_name, _, _ = item
-            logger.info('Loading: ' + processor_name)
+            logger.info(f'Loading: {processor_name}')
             curr_processor_config = self.filter_config(processor_name, self.config)
             curr_processor_config.update(pipeline_level_configs)
             logger.debug('With settings: ')
@@ -137,7 +137,7 @@ class Pipeline:
         for key, value in kwargs.items():
             k, v = key.split('_', 1)
             if v == 'model_path':
-                package = value if len(value) < 25 else value[:10]+ '...' + value[-10:]
+                package = value if len(value) < 25 else f'{value[:10]}...{value[-10:]}'
                 dependencies = processor_dict.get(k, {}).get('dependencies')
                 processor_dict[k] = {'package': package, 'dependencies': dependencies}
         processor_list = [[processor, processor_dict[processor]['package'], processor_dict[processor]['dependencies']] for processor in processor_dict]

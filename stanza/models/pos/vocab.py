@@ -22,10 +22,7 @@ class WordVocab(BaseVocab):
         self.state_attrs += ['ignore']
 
     def id2unit(self, id):
-        if len(self.ignore) > 0 and id == EMPTY_ID:
-            return '_'
-        else:
-            return super().id2unit(id)
+        return '_' if len(self.ignore) > 0 and id == EMPTY_ID else super().id2unit(id)
 
     def unit2id(self, unit):
         if len(self.ignore) > 0 and unit in self.ignore:

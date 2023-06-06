@@ -38,7 +38,7 @@ class Trainer(object):
             self.args = args
             self.model = None if args['dict_only'] else Seq2SeqModel(args, emb_matrix=emb_matrix)
             self.vocab = vocab
-            self.expansion_dict = dict()
+            self.expansion_dict = {}
         if not self.args['dict_only']:
             self.crit = loss.SequenceLoss(self.vocab.size)
             self.parameters = [p for p in self.model.parameters() if p.requires_grad]
@@ -88,7 +88,7 @@ class Trainer(object):
         """ Train a MWT expander given training word-expansion pairs. """
         # accumulate counter
         ctr = Counter()
-        ctr.update([(p[0], p[1]) for p in pairs])
+        ctr |= [(p[0], p[1]) for p in pairs]
         seen = set()
         # find the most frequent mappings
         for p, _ in ctr.most_common():
@@ -132,7 +132,7 @@ class Trainer(object):
                 }
         try:
             torch.save(params, filename)
-            logger.info("Model saved to {}".format(filename))
+            logger.info(f"Model saved to {filename}")
         except BaseException:
             logger.warning("Saving failed... continuing anyway.")
 
@@ -140,7 +140,7 @@ class Trainer(object):
         try:
             checkpoint = torch.load(filename, lambda storage, loc: storage)
         except BaseException:
-            logger.exception("Cannot load model from {}".format(filename))
+            logger.exception(f"Cannot load model from {filename}")
             sys.exit(1)
         self.args = checkpoint['config']
         self.expansion_dict = checkpoint['dict']

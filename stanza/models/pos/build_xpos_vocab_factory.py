@@ -8,7 +8,7 @@ from stanza.models.common.doc import *
 from stanza.utils.conll import CoNLL
 
 if len(sys.argv) != 3:
-    print('Usage: {} list_of_tb_file output_factory_file'.format(sys.argv[0]))
+    print(f'Usage: {sys.argv[0]} list_of_tb_file output_factory_file')
     sys.exit(0)
 
 # Read list of all treebanks of concern
@@ -22,8 +22,7 @@ def treebank_to_short_name(treebank):
     assert len(splits) == 2
     lang, corpus = splits
     lcode = lang2lcode[lang]
-    short = "{}_{}".format(lcode, corpus.lower())
-    return short
+    return f"{lcode}_{corpus.lower()}"
 
 shorthands = []
 fullnames = []
@@ -36,10 +35,7 @@ with open(list_of_tb_file) as f:
 def filter_data(data, idx):
     data_filtered = []
     for sentence in data:
-        flag = True
-        for token in sentence:
-            if token[idx] is None:
-                flag = False
+        flag = all(token[idx] is not None for token in sentence)
         if flag: data_filtered.append(sentence)
     return data_filtered
 
@@ -51,17 +47,12 @@ def filter_data(data, idx):
 # WordVocab).
 mapping = defaultdict(list)
 for sh, fn in zip(shorthands, fullnames):
-    print('Resolving vocab option for {}...'.format(sh))
-    if not os.path.exists('data/pos/{}.train.in.conllu'.format(sh)):
-        raise UserWarning('Training data for {} not found in the data directory, falling back to using WordVocab. To generate the '
-            'XPOS vocabulary for this treebank properly, please run the following command first:\n'
-            '\tbash scripts/prep_pos_data.sh {}'.format(fn, fn))
-        # without the training file, there's not much we can do
-        key = 'WordVocab(data, shorthand, idx=2)'
-        mapping[key].append(sh)
-        continue
-
-    doc = Document(CoNLL.conll2dict(input_file='data/pos/{}.train.in.conllu'.format(sh)))
+    print(f'Resolving vocab option for {sh}...')
+    if not os.path.exists(f'data/pos/{sh}.train.in.conllu'):
+        raise UserWarning(
+            f'Training data for {fn} not found in the data directory, falling back to using WordVocab. To generate the XPOS vocabulary for this treebank properly, please run the following command first:\n\tbash scripts/prep_pos_data.sh {fn}'
+        )
+    doc = Document(CoNLL.conll2dict(input_file=f'data/pos/{sh}.train.in.conllu'))
     data = doc.get([TEXT, UPOS, XPOS, FEATS], as_sentences=True)
     print(f'Original length = {len(data)}')
     data = filter_data(data, idx=2)
@@ -74,7 +65,7 @@ for sh, fn in zip(shorthands, fullnames):
             vocab = XPOSVocab(data, sh, idx=2, sep=sep)
             length = sum(len(x) - len(VOCAB_PREFIX) for x in vocab._id2unit.values())
             if length < best_size:
-                key = 'XPOSVocab(data, shorthand, idx=2, sep="{}")'.format(sep)
+                key = f'XPOSVocab(data, shorthand, idx=2, sep="{sep}")'
                 best_size = length
     mapping[key].append(sh)
 
@@ -89,9 +80,12 @@ from models.pos.vocab import WordVocab, XPOSVocab
 
 def xpos_vocab_factory(data, shorthand):''', file=f)
 
-    for key in mapping:
-        print("    {} shorthand in [{}]:".format('if' if first else 'elif', ', '.join(['"{}"'.format(x) for x in mapping[key]])), file=f)
-        print("        return {}".format(key), file=f)
+    for key, value in mapping.items():
+        print(
+            f"""    {'if' if first else 'elif'} shorthand in [{', '.join([f'"{x}"' for x in value])}]:""",
+            file=f,
+        )
+        print(f"        return {key}", file=f)
 
         first = False
     print('''    else:

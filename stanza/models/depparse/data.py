@@ -22,11 +22,7 @@ class DataLoader:
         data = self.load_doc(doc)
 
         # handle vocab
-        if vocab is None:
-            self.vocab = self.init_vocab(data)
-        else:
-            self.vocab = vocab
-        
+        self.vocab = self.init_vocab(data) if vocab is None else vocab
         # handle pretrain; pretrain vocab is used when args['pretrain'] == True and pretrain is not None
         self.pretrain_vocab = None
         if pretrain is not None and args['pretrain']:
@@ -46,7 +42,7 @@ class DataLoader:
 
         # chunk into batches
         self.data = self.chunk_batches(data)
-        logger.debug("{} batches created.".format(len(self.data)))
+        logger.debug(f"{len(self.data)} batches created.")
 
     def init_vocab(self, data):
         assert self.eval == False # for eval vocab must exist
@@ -57,14 +53,17 @@ class DataLoader:
         featsvocab = FeatureVocab(data, self.args['shorthand'], idx=3)
         lemmavocab = WordVocab(data, self.args['shorthand'], cutoff=7, idx=4, lower=True)
         deprelvocab = WordVocab(data, self.args['shorthand'], idx=6)
-        vocab = MultiVocab({'char': charvocab,
-                            'word': wordvocab,
-                            'upos': uposvocab,
-                            'xpos': xposvocab,
-                            'feats': featsvocab,
-                            'lemma': lemmavocab,
-                            'deprel': deprelvocab})
-        return vocab
+        return MultiVocab(
+            {
+                'char': charvocab,
+                'word': wordvocab,
+                'upos': uposvocab,
+                'xpos': xposvocab,
+                'feats': featsvocab,
+                'lemma': lemmavocab,
+                'deprel': deprelvocab,
+            }
+        )
 
     def preprocess(self, data, vocab, pretrain_vocab, args):
         processed = []
@@ -72,7 +71,7 @@ class DataLoader:
         feats_replacement = [[ROOT_ID] * len(vocab['feats'])]
         for sent in data:
             processed_sent = [[ROOT_ID] + vocab['word'].map([w[0] for w in sent])]
-            processed_sent += [[[ROOT_ID]] + [vocab['char'].map([x for x in w[0]]) for w in sent]]
+            processed_sent += [[[ROOT_ID]] + [vocab['char'].map(list(w[0])) for w in sent]]
             processed_sent += [[ROOT_ID] + vocab['upos'].map([w[1] for w in sent])]
             processed_sent += [xpos_replacement + vocab['xpos'].map([w[2] for w in sent])]
             processed_sent += [feats_replacement + vocab['feats'].map([w[3] for w in sent])]

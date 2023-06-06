@@ -26,8 +26,7 @@ def parse_args():
 
     parser.add_argument('--batch_size', type=int, default=50)
     parser.add_argument('--seed', type=int, default=1234)
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()

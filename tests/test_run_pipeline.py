@@ -41,5 +41,7 @@ def run_pipeline_for_lang(lang_shorthand):
         curr_timestamp = re.sub(' ', '-', str(datetime.now()))
         os.rename(output_file, f'{output_file}-{curr_timestamp}')
     safe_rm(models_download_dir)
-    assert open(gold_output_file).read() == open(f'{output_file}-{curr_timestamp}').read(), \
-        f'Test failure: output does not match gold'
+    assert (
+        open(gold_output_file).read()
+        == open(f'{output_file}-{curr_timestamp}').read()
+    ), 'Test failure: output does not match gold'

@@ -40,23 +40,24 @@ class Pretrain:
         return self._emb
 
     def load(self):
-        if self.filename is not None and os.path.exists(self.filename):
-            try:
-                data = torch.load(self.filename, lambda storage, loc: storage)
-            except (KeyboardInterrupt, SystemExit):
-                raise
-            except BaseException as e:
-                logger.warning("Pretrained file exists but cannot be loaded from {}, due to the following exception:\n\t{}".format(self.filename, e))
-                return self.read_pretrain()
-            return PretrainedWordVocab.load_state_dict(data['vocab']), data['emb']
-        else:
+        if self.filename is None or not os.path.exists(self.filename):
             return self.read_pretrain()
+        try:
+            data = torch.load(self.filename, lambda storage, loc: storage)
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except BaseException as e:
+            logger.warning(
+                f"Pretrained file exists but cannot be loaded from {self.filename}, due to the following exception:\n\t{e}"
+            )
+            return self.read_pretrain()
+        return PretrainedWordVocab.load_state_dict(data['vocab']), data['emb']
 
     def read_pretrain(self):
         # load from pretrained filename
         if self._vec_filename is None:
             raise Exception("Vector file is not provided.")
-        logger.info("Reading pretrained vectors from {}...".format(self._vec_filename))
+        logger.info(f"Reading pretrained vectors from {self._vec_filename}...")
 
         # first try reading as xz file, if failed retry as text file
         try:
@@ -69,25 +70,27 @@ class Pretrain:
             emb = emb[:-failed]
         if len(emb) - len(VOCAB_PREFIX) != len(words):
             raise Exception("Loaded number of vectors does not match number of words.")
-        
+
         # Use a fixed vocab size
         if self._max_vocab > len(VOCAB_PREFIX) and self._max_vocab < len(words):
             words = words[:self._max_vocab - len(VOCAB_PREFIX)]
             emb = emb[:self._max_vocab]
 
         vocab = PretrainedWordVocab(words)
-        
+
         if self._save_to_file:
             assert self.filename is not None, "Filename must be provided to save pretrained vector to file."
             # save to file
             data = {'vocab': vocab.state_dict(), 'emb': emb}
             try:
                 torch.save(data, self.filename)
-                logger.info("Saved pretrained vocab and vectors to {}".format(self.filename))
+                logger.info(f"Saved pretrained vocab and vectors to {self.filename}")
             except (KeyboardInterrupt, SystemExit):
                 raise
             except BaseException as e:
-                logger.warning("Saving pretrained data failed due to the following exception... continuing anyway.\n\t{}".format(e))
+                logger.warning(
+                    f"Saving pretrained data failed due to the following exception... continuing anyway.\n\t{e}"
+                )
 
         return vocab, emb
 

@@ -7,8 +7,7 @@ import torch
 import stanza.models.common.seq2seq_constant as constant
 
 def map_to_ids(tokens, vocab):
-    ids = [vocab[t] if t in vocab else constant.UNK_ID for t in tokens]
-    return ids
+    return [vocab[t] if t in vocab else constant.UNK_ID for t in tokens]
 
 def get_long_tensor(tokens_list, batch_size, pad_id=constant.PAD_ID):
     """ Convert (list of )+ tokens to a padded LongTensor. """

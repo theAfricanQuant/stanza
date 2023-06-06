@@ -4,7 +4,7 @@ import stanza
 import os
 app = Flask(__name__, static_url_path='', static_folder=os.path.abspath(os.path.dirname(__file__)))
 
-pipelineCache = dict()
+pipelineCache = {}
 
 def get_file(path):
     res = os.path.join(os.path.dirname(os.path.abspath(__file__)), path)

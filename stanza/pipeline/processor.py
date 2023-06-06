@@ -124,7 +124,7 @@ class UDProcessor(Processor):
             loaded_args = {k: v for k, v in loaded_args.items() if not UDProcessor.filter_out_option(k)}
         else:
             loaded_args = {}
-        loaded_args.update(config)
+        loaded_args |= config
         self._config = loaded_args
 
     def mark_inactive(self):

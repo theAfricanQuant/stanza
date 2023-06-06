@@ -94,8 +94,7 @@ class CRFLoss(nn.Module):
             # apply masks
             new_alphas.masked_scatter_(m, alphas.masked_select(m))
             alphas = new_alphas
-        log_norm = log_sum_exp(alphas, dim=1)
-        return log_norm
+        return log_sum_exp(alphas, dim=1)
 
 def viterbi_decode(scores, transition_params):
     """
@@ -116,8 +115,7 @@ def viterbi_decode(scores, transition_params):
         backpointers[t] = np.argmax(v, 0)
 
     viterbi = [np.argmax(trellis[-1])]
-    for bp in reversed(backpointers[1:]):
-        viterbi.append(bp[viterbi[-1]])
+    viterbi.extend(bp[viterbi[-1]] for bp in reversed(backpointers[1:]))
     viterbi.reverse()
     viterbi_score = np.max(trellis[-1])
     return viterbi, viterbi_score
@@ -142,6 +140,4 @@ def log_sum_exp(value, dim=None, keepdim=False):
             return m + torch.log(sum_exp)
 
 def set_cuda(var, cuda):
-    if cuda:
-        return var.cuda()
-    return var
+    return var.cuda() if cuda else var

@@ -83,8 +83,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1234)
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA.')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -98,7 +97,7 @@ def main():
         torch.cuda.manual_seed(args.seed)
 
     args = vars(args)
-    logger.info("Running tagger in {} mode".format(args['mode']))
+    logger.info(f"Running tagger in {args['mode']} mode")
 
     if args['mode'] == 'train':
         train(args)
@@ -107,8 +106,11 @@ def main():
 
 def train(args):
     utils.ensure_dir(args['save_dir'])
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-            else '{}/{}_nertagger.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_nertagger.pt"
+    )
 
     # load pretrained vectors
     if len(args['wordvec_file']) == 0:
@@ -123,11 +125,15 @@ def train(args):
             logger.info("CharLM Shorthand is required for loading pretrained CharLM model...")
             sys.exit(0)
         logger.info('Use pretrained contextualized char embedding')
-        args['charlm_forward_file'] = '{}/{}_forward_charlm.pt'.format(args['charlm_save_dir'], args['charlm_shorthand'])
-        args['charlm_backward_file'] = '{}/{}_backward_charlm.pt'.format(args['charlm_save_dir'], args['charlm_shorthand'])
+        args[
+            'charlm_forward_file'
+        ] = f"{args['charlm_save_dir']}/{args['charlm_shorthand']}_forward_charlm.pt"
+        args[
+            'charlm_backward_file'
+        ] = f"{args['charlm_save_dir']}/{args['charlm_shorthand']}_backward_charlm.pt"
 
     # load data
-    logger.info("Loading data with batch size {}...".format(args['batch_size']))
+    logger.info(f"Loading data with batch size {args['batch_size']}...")
     train_doc = Document(json.load(open(args['train_file'])))
     train_batch = DataLoader(train_doc, args['batch_size'], args, pretrain, evaluation=False)
     vocab = train_batch.vocab
@@ -198,7 +204,7 @@ def train(args):
                 # lr schedule
                 if scheduler is not None:
                     scheduler.step(dev_score)
-            
+
             # check stopping
             current_lr = trainer.optimizer.param_groups[0]['lr']
             if global_step >= args['max_steps'] or current_lr <= args['min_lr']:
@@ -210,15 +216,18 @@ def train(args):
 
         train_batch.reshuffle()
 
-    logger.info("Training ended with {} steps.".format(global_step))
+    logger.info(f"Training ended with {global_step} steps.")
 
     best_f, best_eval = max(dev_score_history)*100, np.argmax(dev_score_history)+1
     logger.info("Best dev F1 = {:.2f}, at iteration = {}".format(best_f, best_eval * args['eval_interval']))
 
 def evaluate(args):
     # file paths
-    model_file = args['save_dir'] + '/' + args['save_name'] if args['save_name'] is not None \
-            else '{}/{}_nertagger.pt'.format(args['save_dir'], args['shorthand'])
+    model_file = (
+        args['save_dir'] + '/' + args['save_name']
+        if args['save_name'] is not None
+        else f"{args['save_dir']}/{args['shorthand']}_nertagger.pt"
+    )
 
     # load model
     use_cuda = args['cuda'] and not args['cpu']
@@ -231,13 +240,13 @@ def evaluate(args):
             loaded_args[k] = args[k]
 
     # load data
-    logger.info("Loading data with batch size {}...".format(args['batch_size']))
+    logger.info(f"Loading data with batch size {args['batch_size']}...")
     doc = Document(json.load(open(args['eval_file'])))
     batch = DataLoader(doc, args['batch_size'], loaded_args, vocab=vocab, evaluation=True)
-    
+
     logger.info("Start evaluation...")
     preds = []
-    for i, b in enumerate(batch):
+    for b in batch:
         preds += trainer.predict(b)
 
     gold_tags = batch.tags

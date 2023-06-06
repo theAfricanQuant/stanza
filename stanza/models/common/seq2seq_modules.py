@@ -207,8 +207,8 @@ class LSTMAttention(nn.Module):
         elif attn_type == 'deep':
             self.attention_layer = DeepAttention(hidden_size)
         else:
-            raise Exception("Unsupported LSTM attention type: {}".format(attn_type))
-        logger.debug("Using {} attention for LSTM.".format(attn_type))
+            raise Exception(f"Unsupported LSTM attention type: {attn_type}")
+        logger.debug(f"Using {attn_type} attention for LSTM.")
 
     def forward(self, input, hidden, ctx, ctx_mask=None):
         """Propogate input through the network."""

@@ -34,7 +34,7 @@ class DataLoader:
         if vocab is not None:
             self.vocab = vocab
         else:
-            self.vocab = dict()
+            self.vocab = {}
             char_vocab, pos_vocab = self.init_vocab(data)
             self.vocab = MultiVocab({'char': char_vocab, 'pos': pos_vocab})
 
@@ -55,7 +55,7 @@ class DataLoader:
         # chunk into batches
         data = [data[i:i+batch_size] for i in range(0, len(data), batch_size)]
         self.data = data
-        logger.debug("{} batches created.".format(len(data)))
+        logger.debug(f"{len(data)} batches created.")
 
     def init_vocab(self, data):
         assert self.eval is False, "Vocab file must exist for evaluation"

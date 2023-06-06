@@ -25,11 +25,7 @@ class DataLoader:
 
         # handle vocab
         self.pretrain = pretrain
-        if vocab is None:
-            self.vocab = self.init_vocab(data)
-        else:
-            self.vocab = vocab
-
+        self.vocab = self.init_vocab(data) if vocab is None else vocab
         # filter and sample data
         if args.get('sample_train', 1.0) < 1.0 and not self.eval:
             keep = int(args['sample_train'] * len(data))
@@ -44,7 +40,7 @@ class DataLoader:
 
         # chunk into batches
         self.data = self.chunk_batches(data)
-        logger.debug("{} batches created.".format(len(self.data)))
+        logger.debug(f"{len(self.data)} batches created.")
 
     def init_vocab(self, data):
         def from_model(model_filename):
@@ -68,10 +64,7 @@ class DataLoader:
 
     def preprocess(self, data, vocab, args):
         processed = []
-        if args.get('lowercase', True): # handle word case
-            case = lambda x: x.lower()
-        else:
-            case = lambda x: x
+        case = (lambda x: x.lower()) if args.get('lowercase', True) else (lambda x: x)
         if args.get('char_lowercase', False): # handle character case
             char_case = lambda x: x.lower()
         else:
@@ -150,7 +143,7 @@ class DataLoader:
         for sent in sentences:
             words, tags = zip(*sent)
             # NER field sanity checking
-            if any([x is None or x == '_' for x in tags]):
+            if any(x is None or x == '_' for x in tags):
                 raise Exception("NER tag not found for some input data.")
             # first ensure BIO2 scheme
             tags = to_bio2(tags)

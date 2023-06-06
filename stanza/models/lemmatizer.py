@@ -71,8 +71,7 @@ def parse_args():
     parser.add_argument('--seed', type=int, default=1234)
     parser.add_argument('--cuda', type=bool, default=torch.cuda.is_available())
     parser.add_argument('--cpu', action='store_true', help='Ignore CUDA.')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
@@ -86,7 +85,7 @@ def main():
         torch.cuda.manual_seed(args.seed)
 
     args = vars(args)
-    print("Running lemmatizer in {} mode".format(args['mode']))
+    print(f"Running lemmatizer in {args['mode']} mode")
 
     if args['mode'] == 'train':
         train(args)
@@ -95,7 +94,7 @@ def main():
 
 def train(args):
     # load data
-    print("[Loading data with batch size {}...]".format(args['batch_size']))
+    print(f"[Loading data with batch size {args['batch_size']}...]")
     train_doc = Document(CoNLL.conll2dict(input_file=args['train_file']))
     train_batch = DataLoader(train_doc, args['batch_size'], args, evaluation=False)
     vocab = train_batch.vocab
@@ -105,7 +104,7 @@ def train(args):
     dev_batch = DataLoader(dev_doc, args['batch_size'], args, vocab=vocab, evaluation=True)
 
     utils.ensure_dir(args['model_dir'])
-    model_file = '{}/{}_lemmatizer.pt'.format(args['model_dir'], args['lang'])
+    model_file = f"{args['model_dir']}/{args['lang']}_lemmatizer.pt"
 
     # pred and gold path
     system_pred_file = args['output_file']
@@ -147,7 +146,7 @@ def train(args):
         # start training
         for epoch in range(1, args['num_epoch']+1):
             train_loss = 0
-            for i, batch in enumerate(train_batch):
+            for batch in train_batch:
                 start_time = time.time()
                 global_step += 1
                 loss = trainer.update(batch, eval=False) # update step
@@ -161,7 +160,7 @@ def train(args):
             print("Evaluating on dev set...")
             dev_preds = []
             dev_edits = []
-            for i, batch in enumerate(dev_batch):
+            for batch in dev_batch:
                 preds, edits = trainer.predict(batch, args['beam_size'])
                 dev_preds += preds
                 if edits is not None:
@@ -194,7 +193,7 @@ def train(args):
             dev_score_history += [dev_score]
             print("")
 
-        print("Training ended with {} epochs.".format(epoch))
+        print(f"Training ended with {epoch} epochs.")
 
         best_f, best_epoch = max(dev_score_history)*100, np.argmax(dev_score_history)+1
         print("Best dev F1 = {:.2f}, at epoch = {}".format(best_f, best_epoch))
@@ -203,7 +202,7 @@ def evaluate(args):
     # file paths
     system_pred_file = args['output_file']
     gold_file = args['gold_file']
-    model_file = '{}/{}_lemmatizer.pt'.format(args['model_dir'], args['lang'])
+    model_file = f"{args['model_dir']}/{args['lang']}_lemmatizer.pt"
 
     # load model
     use_cuda = args['cuda'] and not args['cpu']
@@ -215,7 +214,7 @@ def evaluate(args):
             loaded_args[k] = args[k]
 
     # laod data
-    print("Loading data with batch size {}...".format(args['batch_size']))
+    print(f"Loading data with batch size {args['batch_size']}...")
     doc = Document(CoNLL.conll2dict(input_file=args['eval_file']))
     batch = DataLoader(doc, args['batch_size'], loaded_args, vocab=vocab, evaluation=True)
 
@@ -223,7 +222,7 @@ def evaluate(args):
     if len(batch) == 0:
         print("Skip evaluation because no dev data is available...")
         print("Lemma score:")
-        print("{} ".format(args['lang']))
+        print(f"{args['lang']} ")
         sys.exit(0)
 
     dict_preds = trainer.predict_dict(batch.doc.get([TEXT, UPOS]))
@@ -234,7 +233,7 @@ def evaluate(args):
         print("Running the seq2seq model...")
         preds = []
         edits = []
-        for i, b in enumerate(batch):
+        for b in batch:
             ps, es = trainer.predict(b, args['beam_size'])
             preds += ps
             if es is not None:

@@ -76,7 +76,7 @@ class Trainer(BaseTrainer):
                 }
         try:
             torch.save(params, filename)
-            logger.info("Model saved to {}".format(filename))
+            logger.info(f"Model saved to {filename}")
         except BaseException:
             logger.warning("Saving failed... continuing anyway.")
 
@@ -84,7 +84,7 @@ class Trainer(BaseTrainer):
         try:
             checkpoint = torch.load(filename, lambda storage, loc: storage)
         except BaseException:
-            logger.exception("Cannot load model from {}".format(filename))
+            logger.exception(f"Cannot load model from {filename}")
             sys.exit(1)
         self.args = checkpoint['config']
         self.model = Tokenizer(self.args, self.args['vocab_size'], self.args['emb_dim'], self.args['hidden_dim'], dropout=self.args['dropout'])

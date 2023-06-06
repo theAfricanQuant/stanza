@@ -15,25 +15,22 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Convert the conll03 format data into conllu format.")
     parser.add_argument('input', help='Input conll03 format data filename.')
     parser.add_argument('output', help='Output json filename.')
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 def main():
     args = parse_args()
 
     sentences = load_conll03(args.input)
-    print("{} examples loaded from {}".format(len(sentences), args.input))
-    
+    print(f"{len(sentences)} examples loaded from {args.input}")
+
     document = []
     for (words, tags) in sentences:
-        sent = []
-        for w, t in zip(words, tags):
-            sent += [{'text': w, 'ner': t}]
+        sent = [{'text': w, 'ner': t} for w, t in zip(words, tags)]
         document += [sent]
 
     with open(args.output, 'w') as outfile:
         json.dump(document, outfile)
-    print("Generated json file {}.".format(args.output))
+    print(f"Generated json file {args.output}.")
 
 def load_conll03(filename, skip_doc_start=True):
     cached_lines = []

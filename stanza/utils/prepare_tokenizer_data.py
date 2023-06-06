@@ -24,8 +24,7 @@ index = 0 # character offset in rawtext
 def is_para_break(index, text):
     """ Detect if a paragraph break can be found, and return the length of the paragraph break sequence. """
     if text[index] == '\n':
-        para_break = PARAGRAPH_BREAK.match(text[index:])
-        if para_break:
+        if para_break := PARAGRAPH_BREAK.match(text[index:]):
             break_len = len(para_break.group(0))
             return True, break_len
     return False, 0
@@ -42,7 +41,9 @@ def find_next_word(index, text, word, output):
         if para_break:
             # multiple newlines found, paragraph break
             if len(word_sofar) > 0:
-                assert re.match(r'^\s+$', word_sofar), 'Found non-empty string at the end of a paragraph that doesn\'t match any token: |{}|'.format(word_sofar)
+                assert re.match(
+                    r'^\s+$', word_sofar
+                ), f"Found non-empty string at the end of a paragraph that doesn\'t match any token: |{word_sofar}|"
                 word_sofar = ''
 
             output.write('\n\n')
@@ -53,7 +54,9 @@ def find_next_word(index, text, word, output):
         else:
             # non-whitespace char, or a whitespace char that's part of a word
             word_sofar += text[index]
-            assert text[index].replace('\n', ' ') == word[idx], "Character mismatch: raw text contains |%s| but the next word is |%s|." % (word_sofar, word)
+            assert (
+                text[index].replace('\n', ' ') == word[idx]
+            ), f"Character mismatch: raw text contains |{word_sofar}| but the next word is |{word}|."
             idx += 1
         index += 1
     return index, word_sofar
@@ -107,7 +110,7 @@ with open(args.conllu_file, 'r') as f:
             # sentence break found
             if len(buf):
                 assert int(buf[-1]) >= 1
-                output.write(buf[:-1] + '{}'.format(int(buf[-1]) + 1))
+                output.write(f'{buf[:-1]}{int(buf[-1]) + 1}')
                 buf = ''
 
             last_comments = ''
@@ -123,4 +126,4 @@ else:
     with open(args.mwt_output, 'w') as f:
         json.dump(list(mwts.items()), f)
 
-    print('{} unique MWTs found in data'.format(len(mwts)))
+    print(f'{len(mwts)} unique MWTs found in data')
